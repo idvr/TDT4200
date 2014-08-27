@@ -89,14 +89,11 @@ int matrix_multiply(matrix_t* a, matrix_t* b, matrix_t** c){
   }
 
   //First iterate over each element in matrix C.
-  for (int i = 0; i < result->rows*result->cols; ++i){
-    result->as_vec->data[i] = 0.0;
-    //Then start calculating the dot-product of the j-th row in A,
-    for (int j = 0; j < a->rows; ++j){
-      //And k-th coloumn in B
+  for (int i = 0; i < result->rows; ++i){ //For each row
+    for (int j = 0; j < result->cols; ++j){ //For each coloumn
       for (int k = 0; k < a->cols; ++k){
-        //Add up the products to make the dot-product in the corresponding C indice.
-        result->as_vec->data[i] += a->data[j][k]*b->data[k][j];
+        //Add up the dot-product of the corresponding row and coloumn in A and B.
+        result->data[i][j] += (a->data[i][k]*b->data[k][j]);
       }
     }
   }
@@ -141,7 +138,7 @@ void change_size(matrix_t* matrix, int new_rows, int new_cols){
   //"Delete" the old matrix by freeing it.
   free_matrix(matrix);
   //Copy over the address of the new matrix to the pointer.
-  *matrix = *new_mat;
+  matrix = new_mat;
 }
 
 int main(int argc, char** argv){
@@ -170,8 +167,8 @@ int main(int argc, char** argv){
     }
   }
   // Printing matrices
-  printf("Matrix m:\n");
-  print_matrix(m);
+  //printf("Matrix m:\n");
+  //print_matrix(m);
   /*
   Should print:
   0.00 1.00 2.00 3.00
@@ -179,8 +176,8 @@ int main(int argc, char** argv){
   20.00 21.00 22.00 23.00
   */
 
-  printf("Matrix n:\n");
-  print_matrix(n);
+  //printf("Matrix n:\n");
+  //print_matrix(n);
   /*
   Should print:
   0.00 10.00 20.00 30.00
@@ -190,8 +187,8 @@ int main(int argc, char** argv){
   */
 
 
-  printf("Matrix o:\n");
-  print_matrix(o);
+  //printf("Matrix o:\n");
+  //print_matrix(o);
   /*
   Should print:
   1.00 0.00 0.00 0.00 0.00
@@ -202,8 +199,8 @@ int main(int argc, char** argv){
   */
 
   // Checking if matrices are sparse (more than 75% 0s)
-  printf("Matrix m is sparse: %d\n", is_sparse(m, 0.75)); // Not sparse, should print 0
-  printf("Matrix o is sparse: %d\n", is_sparse(o, 0.75)); // Sparse, should print 1
+  //printf("Matrix m is sparse: %d\n", is_sparse(m, 0.75)); // Not sparse, should print 0
+  //printf("Matrix o is sparse: %d\n", is_sparse(o, 0.75)); // Sparse, should print 1
 
 
   // Attempting to multiply m and o, should not work
