@@ -25,3 +25,6 @@
 # Gedit backup files
 *~
 
+#Test executables
+*-test
+
