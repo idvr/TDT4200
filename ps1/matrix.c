@@ -206,11 +206,11 @@ int main(int argc, char** argv){
   // Attempting to multiply m and o, should not work
   matrix_t* p;
   int error = matrix_multiply(m,o,&p);
-  printf("Error (m*o): %d\n", error); // Should print -1
+  //printf("Error (m*o): %d\n", error); // Should print -1
 
   // Attempting to multiply m and n, should work
   error = matrix_multiply(m,n,&p);
-  print_matrix(p);
+  //print_matrix(p);
   /*
   Should print:
   14.00 74.00 134.00 194.00
@@ -219,8 +219,12 @@ int main(int argc, char** argv){
   */
 
   // Shrinking m, expanding n
+  printf("Old m address: %d\n", *m);
   change_size(m, 2,2);
+  printf("New m address: %d\n", *m);
+  printf("Old n address: %d\n", *n);
   change_size(n, 5,5);
+  printf("New n address: %d\n", *n);
 
   printf("Matrix m:\n");
   print_matrix(m);
