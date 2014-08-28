@@ -28,3 +28,5 @@
 #Test executables
 *-test
 
+# Sublime files
+*.sublime-*
