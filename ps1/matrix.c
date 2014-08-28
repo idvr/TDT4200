@@ -6,7 +6,7 @@ typedef struct {
   int len;
 } vector_t;
 
-typedef vector_t *Vector;
+typedef vector_t* Vector;
 
 typedef struct{
   //Add needed fields
@@ -16,7 +16,7 @@ typedef struct{
   int cols;     //The amount of coloumns in the matrix
 } matrix_t;
 
-typedef matrix_t *Matrix;
+typedef matrix_t* Matrix;
 
 matrix_t* new_matrix(int rows, int cols){
   Matrix result = (Matrix) calloc(1, sizeof(matrix_t));
@@ -79,8 +79,7 @@ int is_sparse(matrix_t* matrix, float sparse_threshold){
 int matrix_multiply(matrix_t* a, matrix_t* b, matrix_t** c){
   Matrix result;
   if(a->cols != b->rows){ //If the number of coloumns in the first matrix is not equal to the number of rows in the second matrix,
-    result = (Matrix) calloc(1, sizeof(matrix_t)); //Make a "zero matrix", AKA a matrix with all values initialized to zero.
-    *c = result;  //Set c to zero
+    *c = NULL; //Set c to zero
     return -1;  //Return
   } else{
     //Else, create the matrix "C"
@@ -102,13 +101,16 @@ int matrix_multiply(matrix_t* a, matrix_t* b, matrix_t** c){
 }
 
 void free_matrix(matrix_t* matrix){
+  if(!matrix){
+    return;
+  }
   free(matrix->data[0]);
   free(matrix->data);
   free(matrix->as_vec);
   free(matrix);
 }
 
-void change_size(matrix_t* matrix, int new_rows, int new_cols){
+matrix_t* change_size(matrix_t* matrix, int new_rows, int new_cols){
   //Create the new matrix
   Matrix new_mat = new_matrix(new_rows, new_cols);
   //The size of the sub-matrix whose values are kept and copied over to the new matrix
@@ -138,7 +140,7 @@ void change_size(matrix_t* matrix, int new_rows, int new_cols){
   //"Delete" the old matrix by freeing it.
   free_matrix(matrix);
   //Copy over the address of the new matrix to the pointer.
-  matrix = new_mat;
+  return new_mat;
 }
 
 int main(int argc, char** argv){
@@ -207,7 +209,7 @@ int main(int argc, char** argv){
   matrix_t* p;
   int error = matrix_multiply(m,o,&p);
   //printf("Error (m*o): %d\n", error); // Should print -1
-
+  free_matrix(p);
   // Attempting to multiply m and n, should work
   error = matrix_multiply(m,n,&p);
   //print_matrix(p);
@@ -219,12 +221,8 @@ int main(int argc, char** argv){
   */
 
   // Shrinking m, expanding n
-  printf("Old m address: %d\n", *m);
-  change_size(m, 2,2);
-  printf("New m address: %d\n", *m);
-  printf("Old n address: %d\n", *n);
-  change_size(n, 5,5);
-  printf("New n address: %d\n", *n);
+  m = change_size(m, 2,2);
+  n = change_size(n, 5,5);
 
   printf("Matrix m:\n");
   print_matrix(m);
