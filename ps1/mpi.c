@@ -6,7 +6,6 @@
 
 void send1(int rank, int *msg, int direction){
     *msg += 1;
-    puts( "send1ing messages" );
     MPI_Send(msg, 1, MPI_INT, rank+direction, TAG, MPI_COMM_WORLD);
     printf("Rank %d sent %d\n", rank, *msg);
 }
@@ -25,7 +24,6 @@ int main(int argc, char** argv) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     if (rank == 0){
-        puts( "Rank 0" );
         //Start the transmission of the integer through the ranks/nodes
         msg = -1;
         send1(rank, &msg, 1);
@@ -34,7 +32,6 @@ int main(int argc, char** argv) {
         recv1(rank, &msg, 1, status);
     } else if (rank < (size-1)){ //If rank is not zero or size-1 (AKA first or last)
         //send1 the integer "Forwards"
-        puts( "Rank all" );
         recv1(rank, &msg, -1, status);
         send1(rank, &msg, 1);
 
@@ -43,7 +40,6 @@ int main(int argc, char** argv) {
         send1(rank, &msg, -1);
     } else{//If rank == size -1, aka final/highest rank/node.
         //Receive the integer "msg"
-        puts( "rank size" );
         recv1(rank, &msg, -1, status);
         //Increment and send1 integer back.
         send1(rank, &msg, -1);
