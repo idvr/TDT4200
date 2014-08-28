@@ -12,21 +12,106 @@
 \textsc{\large Parallel Computations}\\[1.0cm]
 
 \begin{table}[h]
-	\centering
-	\begin{tabular}{c}
-		\textsc{Christian Chavez}
-	\end{tabular}
+    \centering
+    \begin{tabular}{c}
+        \textsc{Christian Chavez}
+    \end{tabular}
 \end{table}
 
+\end{center}
 \vfill
 \large{\today}
-\end{center}
 \clearpage
 
 \section{Theory}
 \subsection{Problem 1, General Theory}
 
-%\begin{}
+\begin{enumerate}
+\renewcommand{\theenumi}{\Alph{enumi}}
 
+    \item As the development of IT-hardware has reached the Power-wall,
+Memory-wall, and ILP-wall, we struggle putting more circuits on-chip due to
+the power-wall, we struggle utilizing the circuits we already have on-chip
+due to the memory-wall, and we struggle parallellizing the instructions that
+are run on-chip due to the ILP-wall.
 
+Hence, the way forward has so far been to instead turn the utilization of
+multi-core processors, so as to bypass the three abovementioned walls, and
+yet be able to run more and more complicated and complex programs within a
+smaller time-frame.
+
+    \item Flynn's taxonomy describes the processing units running programs
+based on how what instructions they can run on which data. This description
+will also reflect the programs run on the processors in question, since a
+there's no hindrance in running a single-thread sequential program on a
+multi-core processor architecture.
+
+Flynn's taxonomy's four classifications are as follows:
+
+    \begin{itemize}
+
+        \item Single Instruction, Single Data (SISD). That the processor (and
+architecture) supports the runnning of (and runs) a program that only gives the
+processor one set of instructions to be run on one set of data.
+
+        \item Single Instruction, Multiple Data (SIMD). That the processor (and
+architecture) supports the running of (and runs) a program that only gives the
+processor one set of instructions, which can be utilized (run) on  different
+sets of data.
+
+This is much like how a Graphical Processing Unit (GPU) works today with its
+threads running the same operations on each their segments of the picture
+sent to the screen.
+
+        \item Multiple Instructions, Single Data (MISD). That the processor (and
+architecture) supports the running of (and runs) a program that can give the
+processor several different sets of instructions, to be run (utilized) on the
+same set of data.
+
+        \item Multiple Instructions, Multiple Data (MIMD). That the processor
+(and architecture) supports the running of (and runs) a program that can give
+the processor several different sets of instructions, which are to be utilized
+(run) on different sets of data.
+
+A good example of this would be a digital sound-mixer. It receives data in the
+form of different sound-channels, and can potentially simultaneously manipulate
+each sound-channel differently. One sound-channel may be amplified, another have
+its pitch changed, and a third go through a fourier-transformation for misc.
+sound-effects.
+
+        \item Finally, this PS requires us to specify the following ``class'',
+which is not an official part of Flynn's taxonomy, namely;
+
+Single Program, Multiple Data (SPMD). The idea of the SPMD is to have a program
+which can be run in parallel on multiple cores simultaneously, which makes it
+very much alike the MIMD class.
+
+    \end{itemize}
+
+    \item MPI is normally used for distributed memory systems. This is because
+MPI, when run on more than one processor core at the time, spawns the same
+program off on all its running cores. The parallel behaviour stems from the fact
+that all the different running instances of the MPI program run their own
+instance of the exact same programming code. What makes this a desirable trait
+in parallel programming, is that the MPI standard guarantees each core to be
+able to identify itself uniquely among all the others, hence each core can
+complete a different part of the overall task, even though they all share the
+same codebase for the program they're running.
+
+One core might for example be computing something on one part of a matrix, and
+another core might be computing this same thing on a different part of the same
+matrix.
+
+This then leads us to why MPI is usually used for distributed memory systems.
+Each spawned instance of the program, should ideally have its own processing
+core, and hence may not share memory with the other spawned instances of the MPI
+program. Certainly not L1 cache memory. In a HPC cluster, it's also often the
+case that discrete computers are networked to make up the cluster, creating a
+situation where if all the processors on the cluster are used to run the same
+MPI program, instances of the program may only be able to communicate via the
+networking. Sharing no memory resources with each other, not even harddisks.
+
+\end{enumerate}
+\vfill
+\large{\today}
 \end{document}
