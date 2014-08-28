@@ -169,8 +169,8 @@ int main(int argc, char** argv){
     }
   }
   // Printing matrices
-  //printf("Matrix m:\n");
-  //print_matrix(m);
+  printf("Matrix m:\n");
+  print_matrix(m);
   /*
   Should print:
   0.00 1.00 2.00 3.00
@@ -178,8 +178,8 @@ int main(int argc, char** argv){
   20.00 21.00 22.00 23.00
   */
 
-  //printf("Matrix n:\n");
-  //print_matrix(n);
+  printf("Matrix n:\n");
+  print_matrix(n);
   /*
   Should print:
   0.00 10.00 20.00 30.00
@@ -189,8 +189,8 @@ int main(int argc, char** argv){
   */
 
 
-  //printf("Matrix o:\n");
-  //print_matrix(o);
+  printf("Matrix o:\n");
+  print_matrix(o);
   /*
   Should print:
   1.00 0.00 0.00 0.00 0.00
@@ -201,18 +201,18 @@ int main(int argc, char** argv){
   */
 
   // Checking if matrices are sparse (more than 75% 0s)
-  //printf("Matrix m is sparse: %d\n", is_sparse(m, 0.75)); // Not sparse, should print 0
-  //printf("Matrix o is sparse: %d\n", is_sparse(o, 0.75)); // Sparse, should print 1
+  printf("Matrix m is sparse: %d\n", is_sparse(m, 0.75)); // Not sparse, should print 0
+  printf("Matrix o is sparse: %d\n", is_sparse(o, 0.75)); // Sparse, should print 1
 
 
   // Attempting to multiply m and o, should not work
   matrix_t* p;
   int error = matrix_multiply(m,o,&p);
-  //printf("Error (m*o): %d\n", error); // Should print -1
+  printf("Error (m*o): %d\n", error); // Should print -1
   free_matrix(p);
   // Attempting to multiply m and n, should work
   error = matrix_multiply(m,n,&p);
-  //print_matrix(p);
+  print_matrix(p);
   /*
   Should print:
   14.00 74.00 134.00 194.00
