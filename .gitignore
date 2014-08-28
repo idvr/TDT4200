@@ -30,3 +30,8 @@
 
 # Sublime files
 *.sublime-*
+
+#LaTeX files
+*.aux
+*.log
+*.pdf
