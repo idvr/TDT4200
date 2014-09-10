@@ -72,24 +72,26 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
-
+    //For coloumns
+    MPI_Type_vector(/*Amount of elements in local coloumn*/+2, 1, /*Stride is how long the local row is*/, MPI_Int, &border_col_t);
+    //For rows
+    MPI_Type_vector(/*Amount of elements in local row*/+2, 1, 1, MPI_Int, &border_row_t);
+    MPI_Type_commit(&border_col_t);
+    MPI_Type_commit(&border_row_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-
 
 }
 
 // Exchange borders with neighbour ranks
 void exchange(stack_t* stack){
 
-
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-
 
 }
 
@@ -130,15 +132,12 @@ void add_seeds(stack_t* stack){
 
 // Region growing, serial implementation
 void grow_region(){
-
     stack_t* stack = new_stack();
     add_seeds(stack);
 
     while(stack->size > 0){
         pixel_t pixel = pop(stack);
-
         region[pixel.y * image_size[1] + pixel.x] = 1;
-
 
         int dx[4] = {0,0,1,-1}, dy[4] = {1,-1,0,0};
         for(int c = 0; c < 4; c++){
@@ -149,7 +148,6 @@ void grow_region(){
             if(!inside(candidate)){
                 continue;
             }
-
 
             if(region[candidate.y * image_size[1] + candidate.x]){
                 continue;
@@ -167,19 +165,19 @@ void grow_region(){
 int init_mpi(int argc, char** argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
-    if (size%2 != 0){
-        printf("Need number of processors to be divisible by 2!
-\nExiting program.\n");
-    return;
+    if ((size & (size-1)) != 0){
+        printf("Need number of processes to be a power of 2!\nExiting program.\n");
+        return -1;
     }
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     MPI_Dims_create(size, 2, dims);
-    MPI_Cart_create( MPI_COMM_WORLD, 2, dims, periods, 0, &cart_comm );
-    MPI_Cart_coords( cart_comm, rank, 2, coords );
+    MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &cart_comm);
+    MPI_Cart_coords(cart_comm, rank, 2, coords);
 
-    MPI_Cart_shift( cart_comm, 0, 1, &north, &south );
-    MPI_Cart_shift( cart_comm, 1, 1, &west, &east );
+    MPI_Cart_shift(cart_comm, 0, 1, &north, &south);
+    MPI_Cart_shift(cart_comm, 1, 1, &west, &east);
+    return 0;
 }
 
 void load_and_allocate_images(int argc, char** argv){
@@ -213,7 +211,9 @@ void write_image(){
 
 int main(int argc, char** argv){
     int result;
+
     result = init_mpi(argc, argv);
+
     if (result == -1){
         MPI_Finalize();
         exit(0);
@@ -225,7 +225,11 @@ int main(int argc, char** argv){
 
     distribute_image();
 
-    grow_region();
+    if (size == 1){
+        grow_region();
+    } else{
+
+    }
 
     gather_region();
 
