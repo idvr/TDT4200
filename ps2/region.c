@@ -23,15 +23,16 @@ int rank,                       // MPI rank
     periods[2] = {0,0},         // Periodicity of grid
     north,south,east,west,      // Four neighbouring MPI ranks
     image_size[2] = {512,512},  // Hard coded image size
-    local_image_size[2];        // Size of local part of image (not including border)
-    *sendcounts                 // Size of how much each process is sent from rank == 0
-    *displs                     // List with displacements that go along with sendcounts
+    local_image_size[2],        // Size of local part of image (not including border)
+    *sendcounts,                // Size of how much each process is sent from rank == 0
+    *displs;                    // List with displacements that go along with sendcounts
 
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
-MPI_Datatype border_row_t,
-             border_col_t;
+MPI_Datatype    img_row_t,
+                border_row_t,
+                border_col_t;
 
 unsigned char *image,           // Entire image, only on rank 0
               *region,          // Region bitmap. 1 if in region, 0 elsewise
@@ -74,16 +75,18 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
-    //Create local and global border_cols/rows? Or at least a row variant.
+    //For dividing the global image into rows that are the same length as local rows (below)
+    MPI_Type_vector(local_image_size[1]+2, 1, image_size[1], MPI_INT, &img_row_t);
 
-    //For coloumns
+    //For coloumns that neighbours other processes
     MPI_Type_vector(local_image_size[0]+2, 1, local_image_size[1],
-        MPI_Int, &border_col_t);
+        MPI_INT, &border_col_t);
 
-    //For rows
-    MPI_Type_vector(local_image_size[1]+2, 1, 1, MPI_Int, &border_row_t);
+    //For rows that neighbours other processes
+    MPI_Type_vector(local_image_size[1]+2, 1, 1, MPI_INT, &border_row_t);
 
-    //Commit these two
+    //Commit these three
+    MPI_Type_commit(&img_row_t);
     MPI_Type_commit(&border_col_t);
     MPI_Type_commit(&border_row_t);
 }
@@ -94,7 +97,7 @@ void distribute_image(){
                  MPI_Datatype sendtype, void *recvbuf, int recvcount,
                  MPI_Datatype recvtype,
                  int root, MPI_Comm comm)*/
-    MPI_Scatterv(image, sendcounts, displs, border_row_t,
+    MPI_Scatterv(image, sendcounts, displs, img_row_t,
         local_image, sendcounts[rank], border_row_t, 0, cart_comm);
 }
 
@@ -264,4 +267,3 @@ int main(int argc, char** argv){
 
     exit(0);
 }
-
