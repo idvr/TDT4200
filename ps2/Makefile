@@ -5,5 +5,3 @@ run : region
 
 region : region.c
 	mpicc -std=c99 region.c bmp.c -o region -lm
-	
-
