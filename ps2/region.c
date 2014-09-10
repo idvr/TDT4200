@@ -24,6 +24,8 @@ int rank,                       // MPI rank
     north,south,east,west,      // Four neighbouring MPI ranks
     image_size[2] = {512,512},  // Hard coded image size
     local_image_size[2];        // Size of local part of image (not including border)
+    *sendcounts                 // Size of how much each process is sent from rank == 0
+    *displs                     // List with displacements that go along with sendcounts
 
 MPI_Comm cart_comm;             // Cartesian communicator
 
@@ -72,17 +74,28 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
+    //Create local and global border_cols/rows? Or at least a row variant.
+
     //For coloumns
-    MPI_Type_vector(/*Amount of elements in local coloumn*/+2, 1, /*Stride is how long the local row is*/, MPI_Int, &border_col_t);
+    MPI_Type_vector(local_image_size[0]+2, 1, local_image_size[1],
+        MPI_Int, &border_col_t);
+
     //For rows
-    MPI_Type_vector(/*Amount of elements in local row*/+2, 1, 1, MPI_Int, &border_row_t);
+    MPI_Type_vector(local_image_size[1]+2, 1, 1, MPI_Int, &border_row_t);
+
+    //Commit these two
     MPI_Type_commit(&border_col_t);
     MPI_Type_commit(&border_row_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-
+    /*int MPI_Scatterv(const void *sendbuf, const int *sendcounts, const int *displs,
+                 MPI_Datatype sendtype, void *recvbuf, int recvcount,
+                 MPI_Datatype recvtype,
+                 int root, MPI_Comm comm)*/
+    MPI_Scatterv(image, sendcounts, displs, border_row_t,
+        local_image, sendcounts[rank], border_row_t, 0, cart_comm);
 }
 
 // Exchange borders with neighbour ranks
@@ -222,6 +235,18 @@ int main(int argc, char** argv){
     load_and_allocate_images(argc, argv);
 
     create_types();
+
+    displs = (int*) malloc(sizeof(int)*size);
+    sendcounts = (int*) malloc(sizeof(int)*size);
+
+    int y_axis = (local_image_size[0]+2);
+    int x_axis = (local_image_size[1]+2);
+    int image_tot_row_length = image_size[1];
+    //Set sendcounts and displs for how many local_size rows to send in Scatterv
+    for (int i = 0; i < size; ++i){
+        sendcounts[i] = y_axis;
+        displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
+    }
 
     distribute_image();
 
