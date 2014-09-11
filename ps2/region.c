@@ -77,7 +77,7 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 // Create and commit MPI datatypes
 void create_types(){
     //For spreading the subsections to each corresponding rank
-    MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &img_subsection_t);
+    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &img_subsection_t);
 
     //For coloumns that neighbour other processes
     MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
@@ -94,13 +94,8 @@ void create_types(){
 void distribute_image(){
     puts("Entered distribute_image()");
 
-
-    MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &subblock_t);
-    MPI_Type_commit(&subblock_t);
-
-    int recv_size = local_image_size[0]*local_image_size[1];
-    MPI_Scatterv(image, sendcounts, displs, img_subsection_t, local_image, recv_size,
-                MPI_UNSIGNED_CHAR, 0, cart_comm);
+    int recvcount = local_image_size[0]*local_image_size[1];
+    MPI_Scatterv(image, sendcounts, displs, img_subsection_t, local_image, recvcount, MPI_UNSIGNED_CHAR, 0, cart_comm);
     puts("Done with MPI_Scatterv(), exiting distribute_image()");
 }
 
