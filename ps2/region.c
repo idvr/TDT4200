@@ -249,15 +249,16 @@ void write_image(){
 int main(int argc, char** argv){
     totSize = image_size[0]*image_size[1];
     init_mpi(argc, argv);
-
+    //puts("Done with init_mpi()");
     load_and_allocate_images(argc, argv);
     localRowStride = sizeof(unsigned char)*(local_image_size[0]+2);
     localColStride = sizeof(unsigned char)*(local_image_size[1]+2);
-
+    //puts("Done with load_and_allocate_images()");
     create_types();
-
+    //puts("Done with create_types()");
     displs = (int*) malloc(sizeof(int)*size);
     sendcounts = (int*) malloc(sizeof(int)*size);
+    recvcounts = (int*) malloc(sizeof(int)*size);
 
     int y_axis = (local_image_size[0]);
     int x_axis = (local_image_size[1]);
@@ -268,9 +269,9 @@ int main(int argc, char** argv){
         recvcounts[i] = lsize;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
-
+    //puts("Before distribute_image() in main()");
     distribute_image();
-    puts("Done with distribute_image() in main()!!!");
+    //puts("After distribute_image() in main()");
 
     /*int emptyStack = 1, recvbuf;
     while(MPI_SUCCESS == MPI_Reduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM,
