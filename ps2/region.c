@@ -114,7 +114,7 @@ void gather_region(){
 // Determine if all ranks are finished. You may have to add arguments.
 // You dont have to have this check as a seperate function
 int finished(){
-
+    return 0;
 }
 
 // Check if pixel is inside local image
@@ -198,14 +198,16 @@ int init_mpi(int argc, char** argv){
 
 void load_and_allocate_images(int argc, char** argv){
     if(argc != 2){
-        printf("Usage: region file");
+        printf("Usage: region file\n");
         exit(-1);
     }
+    //printf("Finished first if-check\n");
 
     if(rank == 0){
         image = read_bmp(argv[1]);
         region = (unsigned char*)calloc(sizeof(unsigned char),image_size[0]*image_size[1]);
     }
+    //printf("Finished second if-check\n");
 
     local_image_size[0] = image_size[0]/dims[0];
     local_image_size[1] = image_size[1]/dims[1];
@@ -226,19 +228,20 @@ void write_image(){
 }
 
 int main(int argc, char** argv){
-    int result;
-
-    result = init_mpi(argc, argv);
-
+    //printf("Entered main()\n");
+    int result = init_mpi(argc, argv);
+    //printf("Finished init_mpi() with result == %d\n", result);
     if (result == -1){
         MPI_Finalize();
         exit(0);
     }
+    //printf("Finished if result==-1 check\n");
 
     load_and_allocate_images(argc, argv);
+    //printf("Finished load_and_allocate_images()\n");
 
-    create_types();
-
+    //create_types();
+    printf("Finished create_types()\n");
     displs = (int*) malloc(sizeof(int)*size);
     sendcounts = (int*) malloc(sizeof(int)*size);
 
@@ -250,6 +253,7 @@ int main(int argc, char** argv){
         sendcounts[i] = y_axis;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
+    printf("Finished sendcounts and displs creations.\n");
 
     distribute_image();
 
