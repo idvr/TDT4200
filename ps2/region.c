@@ -30,7 +30,7 @@ int rank,                       // MPI rank
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
-MPI_Datatype    img_row_t,
+MPI_Datatype    img_subsection_t,
                 border_row_t,
                 border_col_t;
 
@@ -75,19 +75,18 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
-    //For dividing the global image into rows that are the same length as local rows (below)
-    MPI_Type_vector(1, local_image_size[1], 0, MPI_UNSIGNED_CHAR, &img_row_t);
+    //For spreading the subsections to each corresponding rank
+    MPI_Type_vector(1, local_image_size[1], 0, MPI_UNSIGNED_CHAR, &img_subsection_t);
 
+    //For coloumns that neighbour other processes
+    MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
+    //For rows that neighbour other processes
+    MPI_Type_vector(local_image_size[1], local_image_size[0]+2, 1, MPI_UNSIGNED_CHAR, &border_row_t);
 
-    //For coloumns that neighbours other processes
-    //MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
-    //For rows that neighbours other processes
-    //MPI_Type_vector(local_image_size[1], local_image_size[0]+2, 1, MPI_UNSIGNED_CHAR, &border_row_t);
-
-    //Commit these three
-    MPI_Type_commit(&img_row_t);
-    //MPI_Type_commit(&border_col_t);
-    //MPI_Type_commit(&border_row_t);
+    //Commit the above
+    MPI_Type_commit(&img_subsection_t);
+    MPI_Type_commit(&border_col_t);
+    MPI_Type_commit(&border_row_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
