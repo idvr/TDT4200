@@ -147,11 +147,13 @@ void add_seeds(stack_t* stack){
 }
 
 // Region growing, serial implementation
-void grow_region(){
+int grow_region(){
     stack_t* stack = new_stack();
     add_seeds(stack);
 
+    int notEmpty = 0;
     while(stack->size > 0){
+        notEmpty = 1;
         pixel_t pixel = pop(stack);
         region[pixel.y * local_image_size[1] + pixel.x] = 1;
 
@@ -175,6 +177,7 @@ void grow_region(){
             }
         }
     }
+    return notEmpty;
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -202,13 +205,11 @@ void load_and_allocate_images(int argc, char** argv){
         printf("Usage: region file\n");
         exit(-1);
     }
-    //printf("Finished first if-check\n");
 
     if(rank == 0){
         image = read_bmp(argv[1]);
         region = (unsigned char*)calloc(sizeof(unsigned char),image_size[0]*image_size[1]);
     }
-    //printf("Finished second if-check\n");
 
     local_image_size[0] = image_size[0]/dims[0];
     local_image_size[1] = image_size[1]/dims[1];
@@ -250,11 +251,11 @@ int main(int argc, char** argv){
     distribute_image();
     puts("Done with distribute_image() in main()!!!");
 
-    if (size == 1){
-        grow_region();
-    } else{
-
-    }
+    /*int emptyStack = 1, recvbuf;
+    while(MPI_SUCCESS == MPI_Reduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM,
+        0, cart_comm) && ){
+        emptyStack = grow_region();
+    }*/
 
     gather_region();
 
