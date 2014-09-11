@@ -18,22 +18,28 @@ typedef struct{
 // Global variables
 int rank,                       // MPI rank
     size,                       // Number of MPI processes
+    lsize,                      // Total size of local image char array
+    totSize,                    // Total size of global image char array
     dims[2],                    // Dimensions of MPI grid
     coords[2],                  // Coordinate of this rank in MPI grid
     periods[2] = {0,0},         // Periodicity of grid
     north,south,east,west,      // Four neighbouring MPI ranks
     image_size[2] = {512,512},  // Hard coded image size
     local_image_size[2],        // Size of local part of image (not including border)
+    *recvcounts,                // Size of how much each process sends rank == 0
     *sendcounts,                // Size of how much each process is sent from rank == 0
-    *displs;                    // List with displacements that go along with sendcounts
+    *displs,                    // List with displacements that go along with sendcounts
+    localRowStride,             // Stridelength from start of one row to another in local image/region
+    localColStride;             // Stridelength from start of one col to another in local image/region
 
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
 MPI_Datatype    border_row_t,
                 border_col_t,
-                recv_subsection_t,
-                send_subsection_t;
+                scattrv_recv_subsection_t,
+                scattrv_send_subsection_t,
+                gatherv_send_subsection_t;
 
 unsigned char *image,           // Entire image, only on rank 0
               *region,          // Region bitmap. 1 if in region, 0 elsewise
@@ -76,30 +82,32 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
-    //For sending the subsections of each corresponding rank
-    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &send_subsection_t);
-    //For receiving the subsections of each corresponding rank
-    MPI_Type_vector(local_image_size[1], local_image_size[0], local_image_size[1]+2, MPI_UNSIGNED_CHAR, &recv_subsection_t);
+    //For sending the subsections of each corresponding rank in scatterv
+    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
+    //For receiving the subsections of each corresponding rank in scatterv
+    MPI_Type_vector(local_image_size[1], local_image_size[0], localColStride, MPI_UNSIGNED_CHAR, &scattrv_recv_subsection_t);
 
+    //For sending the subsections of each rank into rank 0 in gatherv
+    MPI_Type_vector(local_image_size[0], local_image_size[1], localRowStride, MPI_UNSIGNED_CHAR, &gatherv_send_subsection_t);
 
     //For coloumns that neighbour other processes
-    MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
+    MPI_Type_vector(1, local_image_size[0], localColStride, MPI_UNSIGNED_CHAR, &border_col_t);
     //For rows that neighbour other processes
-    MPI_Type_vector(local_image_size[1], local_image_size[0]+2, 1, MPI_UNSIGNED_CHAR, &border_row_t);
+    MPI_Type_vector(1, local_image_size[1], localRowStride, MPI_UNSIGNED_CHAR, &border_row_t);
 
     //Commit the above
     MPI_Type_commit(&border_col_t);
     MPI_Type_commit(&border_row_t);
-    MPI_Type_commit(&send_subsection_t);
-    MPI_Type_commit(&recv_subsection_t);
+    MPI_Type_commit(&scattrv_send_subsection_t);
+    MPI_Type_commit(&scattrv_recv_subsection_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-    MPI_Scatterv(image, sendcounts, displs, send_subsection_t,
+    MPI_Scatterv(image, sendcounts, displs, scattrv_send_subsection_t,
         //The immediately below line is to make sure that the data transferred is sent to the right place in memory
         local_image+(sizeof(unsigned char)*(local_image_size[0]+2)),
-        local_image_size[0]*local_image_size[1], recv_subsection_t, 0, cart_comm);
+        lsize, scattrv_recv_subsection_t, 0, cart_comm);
 }
 
 // Exchange borders with neighbour ranks
@@ -113,8 +121,11 @@ void gather_region(){
     /*int MPI_Gatherv(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                 void *recvbuf, const int *recvcounts, const int *displs,
                 MPI_Datatype recvtype, int root, MPI_Comm comm)*/
-    int sendcount = local_image_size[0]*local_image_size[1];
-    //MPI_Gatherv(local_region, sendcount, MPI_UNSIGNED_CHAR, )
+    puts("Entered gather_region");
+    MPI_Gatherv(local_region+(sizeof(unsigned char)*(local_image_size[0]+2)),
+                1, gatherv_send_subsection_t, region, recvcounts,
+                displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
+    puts("Exited gather_region");
 }
 
 // Determine if all ranks are finished. You may have to add arguments.
@@ -157,9 +168,9 @@ int grow_region(){
     stack_t* stack = new_stack();
     add_seeds(stack);
 
-    int notEmpty = 0;
+    int stackChanged = 0;
     while(stack->size > 0){
-        notEmpty = 1;
+        stackChanged = 1;
         pixel_t pixel = pop(stack);
         region[pixel.y * local_image_size[1] + pixel.x] = 1;
 
@@ -183,7 +194,7 @@ int grow_region(){
             }
         }
     }
-    return notEmpty;
+    return stackChanged;
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -214,13 +225,13 @@ void load_and_allocate_images(int argc, char** argv){
 
     if(rank == 0){
         image = read_bmp(argv[1]);
-        region = (unsigned char*)calloc(sizeof(unsigned char),image_size[0]*image_size[1]);
+        region = (unsigned char*)calloc(sizeof(unsigned char),totSize);
     }
 
     local_image_size[0] = image_size[0]/dims[0];
     local_image_size[1] = image_size[1]/dims[1];
 
-    int lsize = local_image_size[0]*local_image_size[1];
+    lsize = local_image_size[0]*local_image_size[1];
     int lsize_border = (local_image_size[0] + 2)*(local_image_size[1] + 2);
     local_image = (unsigned char*)malloc(sizeof(unsigned char)*lsize_border);
     local_region = (unsigned char*)calloc(sizeof(unsigned char),lsize_border);
@@ -228,7 +239,7 @@ void load_and_allocate_images(int argc, char** argv){
 
 void write_image(){
     if(rank==0){
-        for(int i = 0; i < image_size[0]*image_size[1]; i++){
+        for(int i = 0; i < totSize; i++){
             image[i] *= (region[i] == 0);
         }
         write_bmp(image, image_size[0], image_size[1]);
@@ -236,9 +247,12 @@ void write_image(){
 }
 
 int main(int argc, char** argv){
+    totSize = image_size[0]*image_size[1];
     init_mpi(argc, argv);
 
     load_and_allocate_images(argc, argv);
+    localRowStride = sizeof(unsigned char)*(local_image_size[0]+2);
+    localColStride = sizeof(unsigned char)*(local_image_size[1]+2);
 
     create_types();
 
@@ -251,6 +265,7 @@ int main(int argc, char** argv){
     //Set displs for where to start sending data to each rank from, in Scatterv
     for (int i = 0; i < size; ++i){
         sendcounts[i] = 1;
+        recvcounts[i] = lsize;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
 
