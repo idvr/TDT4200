@@ -1,0 +1,86 @@
+%Problem Set 1 LaTeX report for TDT4200
+\documentclass[fontsize=11pt, paper=a4, titlepage]{article}
+\input{../../config} %config.tex file in same directory
+
+\begin{document}
+
+\begin{center}
+
+{\huge Problem Set 2}\\[0.5cm]
+
+\textsc{\LARGE TDT4200 -}\\[0.5cm]
+\textsc{\large Parallel Computations}\\[1.0cm]
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c}
+        \textsc{Christian Chavez}
+    \end{tabular}
+\end{table}
+
+\end{center}
+\vfill
+\large{\today}
+\clearpage
+
+\section{Theory}
+\subsection{Problem 1, MPI}
+
+\begin{enumerate}
+\renewcommand{\theenumi}{\Alph{enumi})}
+
+    \item What is the difference between blocking and non-blocking sends in MPI?
+Blocking sends in MPI (like MPI_Send() and MPI_Recv()), block the flow of the
+program until the corresponding rank reached the corresponding sent/received call
+in its own program flow.
+
+Non-blocking sends do not wait for the receiving rank to be ready with the
+receiving buffer. Nor do the receiving ranks wait to make sure that the data has
+been sent from the rank sending it.
+
+    \item What is the difference between synchronous and asynchronous sends in MPI?
+
+\end{enumerate}
+
+\subsection{Problem 2, Interconnects}
+
+\begin{enumerate}
+\renewcommand{\theenumi}{\Alph{enumi})}
+
+    \item Draw a mesh, torus and hypercube with 16 nodes.
+
+    \item Which of the interconnects in a) has the smallest and largest bisection width?
+
+\end{enumerate}
+
+\subsection{Problem 3, Amdahl and Gustafson}
+
+\begin{enumerate}
+\renewcommand{\theenumi}{\Alph{enumi})}
+
+    \item
+
+    \item
+
+    \item
+
+\end{enumerate}
+
+\subsection{Problem 4, Communication}
+
+\begin{enumerate}
+\renewcommand{\theenumi}{\Alph{enumi})}
+
+    \item
+
+    \item
+
+    \item
+
+    \item
+
+\end{enumerate}
+
+\vfill
+\large{\today}
+\end{document}
