@@ -76,7 +76,7 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 // Create and commit MPI datatypes
 void create_types(){
     //For spreading the subsections to each corresponding rank
-    MPI_Type_vector(1, local_image_size[1], 0, MPI_UNSIGNED_CHAR, &img_subsection_t);
+    MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &img_subsection_t);
 
     //For coloumns that neighbour other processes
     MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
@@ -94,10 +94,10 @@ void distribute_image(){
     puts("Entered distribute_image()");
     MPI_Datatype subblock_t;
     MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &subblock_t);
-    int sendcounts[size];
+    /*int sendcounts[size];
     for (int i = 0; i < size; i++) {
         sendcounts[i] = 1;
-    }
+    }*/
     MPI_Type_commit(&subblock_t);
 
     MPI_Scatterv(image, sendcounts, displs, subblock_t, local_image,
@@ -258,6 +258,7 @@ int main(int argc, char** argv){
     int image_tot_row_length = image_size[1];
     //Set displs for where to start sending data to each rank from, in Scatterv
     for (int i = 0; i < size; ++i){
+        sendcounts[i] = 1;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
     //printf("Finished sendcounts and displs creations.\n");
