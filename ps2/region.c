@@ -256,9 +256,8 @@ int main(int argc, char** argv){
     int y_axis = (local_image_size[0]);
     int x_axis = (local_image_size[1]);
     int image_tot_row_length = image_size[1];
-    //Set sendcounts and displs for how many local_size rows to send in Scatterv
+    //Set displs for where to start sending data to each rank from, in Scatterv
     for (int i = 0; i < size; ++i){
-        sendcounts[i] = y_axis;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
     //printf("Finished sendcounts and displs creations.\n");
