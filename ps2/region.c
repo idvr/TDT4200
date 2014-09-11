@@ -76,39 +76,48 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 // Create and commit MPI datatypes
 void create_types(){
     //For dividing the global image into rows that are the same length as local rows (below)
-    MPI_Type_vector(local_image_size[1]+2, 1, image_size[1], MPI_INT, &img_row_t);
+    MPI_Type_vector(1, local_image_size[1], 0, MPI_UNSIGNED_CHAR, &img_row_t);
+
 
     //For coloumns that neighbours other processes
-    MPI_Type_vector(local_image_size[0]+2, 1, local_image_size[1],
-        MPI_INT, &border_col_t);
-
+    //MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
     //For rows that neighbours other processes
-    MPI_Type_vector(local_image_size[1]+2, 1, 1, MPI_INT, &border_row_t);
+    //MPI_Type_vector(local_image_size[1], local_image_size[0]+2, 1, MPI_UNSIGNED_CHAR, &border_row_t);
 
     //Commit these three
     MPI_Type_commit(&img_row_t);
-    MPI_Type_commit(&border_col_t);
-    MPI_Type_commit(&border_row_t);
+    //MPI_Type_commit(&border_col_t);
+    //MPI_Type_commit(&border_row_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-    /*int MPI_Scatterv(const void *sendbuf, const int *sendcounts, const int *displs,
-                 MPI_Datatype sendtype, void *recvbuf, int recvcount,
-                 MPI_Datatype recvtype,
-                 int root, MPI_Comm comm)*/
-    MPI_Scatterv(image, sendcounts, displs, img_row_t,
-        local_image, sendcounts[rank], border_row_t, 0, cart_comm);
+    puts("Entered distribute_image()");
+    MPI_Datatype subblock_t;
+    MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &subblock_t);
+    int sendcounts[size];
+    for (int i = 0; i < size; i++) {
+        sendcounts[i] = 1;
+    }
+    MPI_Type_commit(&subblock_t);
+
+    MPI_Scatterv(image, sendcounts, displs, subblock_t, local_image,
+        local_image_size[0]*local_image_size[1], MPI_UNSIGNED_CHAR, 0, cart_comm);
+    puts("Done with MPI_Scatterv(), exiting distribute_image()");
 }
 
 // Exchange borders with neighbour ranks
 void exchange(stack_t* stack){
-
+    //
+    //
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-
+    /*int MPI_Gatherv(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
+                void *recvbuf, const int *recvcounts, const int *displs,
+                MPI_Datatype recvtype, int root, MPI_Comm comm)*/
+    //MPI_Gatherv(local_region, )
 }
 
 // Determine if all ranks are finished. You may have to add arguments.
@@ -241,19 +250,19 @@ int main(int argc, char** argv){
     //printf("Finished load_and_allocate_images()\n");
 
     //create_types();
-    printf("Finished create_types()\n");
+    //printf("Finished create_types()\n");
     displs = (int*) malloc(sizeof(int)*size);
     sendcounts = (int*) malloc(sizeof(int)*size);
 
-    int y_axis = (local_image_size[0]+2);
-    int x_axis = (local_image_size[1]+2);
+    int y_axis = (local_image_size[0]);
+    int x_axis = (local_image_size[1]);
     int image_tot_row_length = image_size[1];
     //Set sendcounts and displs for how many local_size rows to send in Scatterv
     for (int i = 0; i < size; ++i){
         sendcounts[i] = y_axis;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
-    printf("Finished sendcounts and displs creations.\n");
+    //printf("Finished sendcounts and displs creations.\n");
 
     distribute_image();
 
