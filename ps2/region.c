@@ -33,6 +33,7 @@ MPI_Comm cart_comm;             // Cartesian communicator
 MPI_Datatype    img_subsection_t,
                 border_row_t,
                 border_col_t;
+MPI_Datatype subblock_t;
 
 unsigned char *image,           // Entire image, only on rank 0
               *region,          // Region bitmap. 1 if in region, 0 elsewise
@@ -92,16 +93,14 @@ void create_types(){
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
     puts("Entered distribute_image()");
-    MPI_Datatype subblock_t;
+
+
     MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &subblock_t);
-    /*int sendcounts[size];
-    for (int i = 0; i < size; i++) {
-        sendcounts[i] = 1;
-    }*/
     MPI_Type_commit(&subblock_t);
 
-    MPI_Scatterv(image, sendcounts, displs, subblock_t, local_image,
-        local_image_size[0]*local_image_size[1], MPI_UNSIGNED_CHAR, 0, cart_comm);
+    int recv_size = local_image_size[0]*local_image_size[1];
+    MPI_Scatterv(image, sendcounts, displs, img_subsection_t, local_image, recv_size,
+                MPI_UNSIGNED_CHAR, 0, cart_comm);
     puts("Done with MPI_Scatterv(), exiting distribute_image()");
 }
 
@@ -248,7 +247,7 @@ int main(int argc, char** argv){
     load_and_allocate_images(argc, argv);
     //printf("Finished load_and_allocate_images()\n");
 
-    //create_types();
+    create_types();
     //printf("Finished create_types()\n");
     displs = (int*) malloc(sizeof(int)*size);
     sendcounts = (int*) malloc(sizeof(int)*size);
