@@ -92,11 +92,8 @@ void create_types(){
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-    puts("Entered distribute_image()");
-
     int recvcount = local_image_size[0]*local_image_size[1];
     MPI_Scatterv(image, sendcounts, displs, img_subsection_t, local_image, recvcount, MPI_UNSIGNED_CHAR, 0, cart_comm);
-    puts("Done with MPI_Scatterv(), exiting distribute_image()");
 }
 
 // Exchange borders with neighbour ranks
@@ -186,7 +183,8 @@ int init_mpi(int argc, char** argv){
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     if ((size & (size-1)) != 0){
         printf("Need number of processes to be a power of 2!\nExiting program.\n");
-        return -1;
+        MPI_Finalize();
+        exit(-1);
     }
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
@@ -231,20 +229,12 @@ void write_image(){
 }
 
 int main(int argc, char** argv){
-    //printf("Entered main()\n");
-    int result = init_mpi(argc, argv);
-    //printf("Finished init_mpi() with result == %d\n", result);
-    if (result == -1){
-        MPI_Finalize();
-        exit(0);
-    }
-    //printf("Finished if result==-1 check\n");
+    init_mpi(argc, argv);
 
     load_and_allocate_images(argc, argv);
-    //printf("Finished load_and_allocate_images()\n");
 
     create_types();
-    //printf("Finished create_types()\n");
+
     displs = (int*) malloc(sizeof(int)*size);
     sendcounts = (int*) malloc(sizeof(int)*size);
 
@@ -256,9 +246,9 @@ int main(int argc, char** argv){
         sendcounts[i] = 1;
         displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
     }
-    //printf("Finished sendcounts and displs creations.\n");
 
     distribute_image();
+    puts("Done with distribute_image() in main()!!!");
 
     if (size == 1){
         grow_region();
