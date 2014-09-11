@@ -30,10 +30,10 @@ int rank,                       // MPI rank
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
-MPI_Datatype    img_subsection_t,
-                border_row_t,
-                border_col_t;
-MPI_Datatype subblock_t;
+MPI_Datatype    border_row_t,
+                border_col_t,
+                recv_subsection_t,
+                send_subsection_t;
 
 unsigned char *image,           // Entire image, only on rank 0
               *region,          // Region bitmap. 1 if in region, 0 elsewise
@@ -76,8 +76,11 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
-    //For spreading the subsections to each corresponding rank
-    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &img_subsection_t);
+    //For sending the subsections of each corresponding rank
+    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &send_subsection_t);
+    //For receiving the subsections of each corresponding rank
+    MPI_Type_vector(local_image_size[1], local_image_size[0], local_image_size[1]+2, MPI_UNSIGNED_CHAR, &recv_subsection_t);
+
 
     //For coloumns that neighbour other processes
     MPI_Type_vector(local_image_size[0], 1, local_image_size[1]+2, MPI_UNSIGNED_CHAR, &border_col_t);
@@ -85,15 +88,18 @@ void create_types(){
     MPI_Type_vector(local_image_size[1], local_image_size[0]+2, 1, MPI_UNSIGNED_CHAR, &border_row_t);
 
     //Commit the above
-    MPI_Type_commit(&img_subsection_t);
     MPI_Type_commit(&border_col_t);
     MPI_Type_commit(&border_row_t);
+    MPI_Type_commit(&send_subsection_t);
+    MPI_Type_commit(&recv_subsection_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-    int recvcount = local_image_size[0]*local_image_size[1];
-    MPI_Scatterv(image, sendcounts, displs, img_subsection_t, local_image, recvcount, MPI_UNSIGNED_CHAR, 0, cart_comm);
+    MPI_Scatterv(image, sendcounts, displs, send_subsection_t,
+        //The immediately below line is to make sure that the data transferred is sent to the right place in memory
+        local_image+(sizeof(unsigned char)*(local_image_size[0]+2)),
+        local_image_size[0]*local_image_size[1], recv_subsection_t, 0, cart_comm);
 }
 
 // Exchange borders with neighbour ranks
@@ -255,6 +261,7 @@ int main(int argc, char** argv){
     while(MPI_SUCCESS == MPI_Reduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM,
         0, cart_comm) && ){
         emptyStack = grow_region();
+        exchange();
     }*/
 
     gather_region();
