@@ -110,7 +110,8 @@ void gather_region(){
     /*int MPI_Gatherv(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
                 void *recvbuf, const int *recvcounts, const int *displs,
                 MPI_Datatype recvtype, int root, MPI_Comm comm)*/
-    //MPI_Gatherv(local_region, )
+    int sendcount = local_image_size[0]*local_image_size[1];
+    //MPI_Gatherv(local_region, sendcount, MPI_UNSIGNED_CHAR, )
 }
 
 // Determine if all ranks are finished. You may have to add arguments.
@@ -130,12 +131,12 @@ void add_seeds(stack_t* stack){
     int seeds [8];
     seeds[0] = 5;
     seeds[1] = 5;
-    seeds[2] = image_size[1]-5;
+    seeds[2] = local_image_size[1]-5;
     seeds[3] = 5;
-    seeds[4] = image_size[1]-5;
-    seeds[5] = image_size[0]-5;
+    seeds[4] = local_image_size[1]-5;
+    seeds[5] = local_image_size[0]-5;
     seeds[6] = 5;
-    seeds[7] = image_size[0]-5;
+    seeds[7] = local_image_size[0]-5;
 
     for(int i = 0; i < 4; i++){
         pixel_t seed;
@@ -177,6 +178,11 @@ void grow_region(){
             }
         }
     }
+}
+
+void grow_region2(){
+    stack_t* stack = new_stack();
+    add_seeds(stack);
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -249,7 +255,7 @@ int main(int argc, char** argv){
 
     int y_axis = (local_image_size[0]);
     int x_axis = (local_image_size[1]);
-    int image_tot_row_length = image_size[1];
+    int image_tot_row_length = image_size[0];
     //Set displs for where to start sending data to each rank from, in Scatterv
     for (int i = 0; i < size; ++i){
         sendcounts[i] = 1;
