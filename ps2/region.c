@@ -68,8 +68,8 @@ pixel_t pop(stack_t* stack){
 // Check if two pixels are similar. The hardcoded threshold can be changed.
 // More advanced similarity checks could have been used.
 int similar(unsigned char* im, pixel_t p, pixel_t q){
-    int a = im[p.x +  p.y * image_size[1]];
-    int b = im[q.x +  q.y * image_size[1]];
+    int a = im[p.x +  p.y * local_image_size[1]];
+    int b = im[q.x +  q.y * local_image_size[1]];
     int diff = abs(a-b);
     return diff < 2;
 }
@@ -156,7 +156,7 @@ void grow_region(){
 
     while(stack->size > 0){
         pixel_t pixel = pop(stack);
-        region[pixel.y * image_size[1] + pixel.x] = 1;
+        region[pixel.y * local_image_size[1] + pixel.x] = 1;
 
         int dx[4] = {0,0,1,-1}, dy[4] = {1,-1,0,0};
         for(int c = 0; c < 4; c++){
@@ -168,21 +168,16 @@ void grow_region(){
                 continue;
             }
 
-            if(region[candidate.y * image_size[1] + candidate.x]){
+            if(region[candidate.y * local_image_size[1] + candidate.x]){
                 continue;
             }
 
             if(similar(image, pixel, candidate)){
-                region[candidate.x + candidate.y * image_size[1]] = 1;
+                region[candidate.x + candidate.y * local_image_size[1]] = 1;
                 push(stack,candidate);
             }
         }
     }
-}
-
-void grow_region2(){
-    stack_t* stack = new_stack();
-    add_seeds(stack);
 }
 
 // MPI initialization, setting up cartesian communicator
