@@ -29,8 +29,8 @@ int rank,                       // MPI rank
     *recvcounts,                // Size of how much each process sends rank == 0
     *sendcounts,                // Size of how much each process is sent from rank == 0
     *displs,                    // List with displacements that go along with sendcounts
-    localRowStride,             // Stridelength from start of one row to another in local image/region
-    localColStride;             // Stridelength from start of one col to another in local image/region
+    local_image_col_length,             // Stridelength from start of one row to another in local image/region
+    local_image_row_length;             // Stridelength from start of one col to another in local image/region
 
 MPI_Comm cart_comm;             // Cartesian communicator
 
@@ -81,17 +81,23 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
     return diff < 2;
 }
 
+unsigned char* chrsz(unsigned char* ptr, int inpt){
+    return ptr +
+        (sizeof(unsigned char)*inpt);
+}
+
+
 // Create and commit MPI datatypes
 void create_types(){
     //For sending the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
+    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
     //For receiving the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(local_image_size[0], local_image_size[1], localRowStride, MPI_UNSIGNED_CHAR, &img_recv_subsection_t);
+    MPI_Type_vector(1, local_image_size[1], 2, MPI_UNSIGNED_CHAR, &img_recv_subsection_t);
 
-    //For coloumns that neighbour other processes
-    MPI_Type_vector(1, local_image_size[0], localColStride, MPI_UNSIGNED_CHAR, &border_col_t);
     //For rows that neighbour other processes
-    MPI_Type_vector(1, local_image_size[1], localRowStride, MPI_UNSIGNED_CHAR, &border_row_t);
+    MPI_Type_contiguous(local_image_size[1], MPI_UNSIGNED_CHAR, &border_row_t);
+    //For coloumns that neighbour other processes
+    MPI_Type_vector(local_image_size[0], 1, local_image_row_length, MPI_UNSIGNED_CHAR, &border_col_t);
 
     //Commit the above
     MPI_Type_commit(&border_col_t);
@@ -106,35 +112,41 @@ void distribute_image(){
         for (int i = 0; i < size; ++i){
             printf("sendcounts[%d] = %d & displs[%d] = %d\n", i, sendcounts[i], i, displs[i]);
         }
-        printf("Address of local_image: %p\n", local_image);
-        printf("Size of added value: %p\n", (sizeof(unsigned char)*(localRowStride)));
-        printf("Local address function input: %p\n", local_image+(sizeof(unsigned char)*(localRowStride)));
+        printf("Address of image: %p\n", image);
+        printf("Address of locale image: %p\n", local_image);
+        printf("Size of added value: %p\n", (sizeof(unsigned char)*(local_image_col_length)));
+        printf("Local address function input: %p\n", chrsz(local_image,local_image_col_length));
     }
     MPI_Scatterv(image, sendcounts, displs, scattrv_send_subsection_t,
         //The immediately below line is to make sure that the data transferred is sent to the right place in memory
-        local_image+(sizeof(unsigned char)*(localRowStride)),
-        1, img_recv_subsection_t, 0, cart_comm);
+        chrsz(local_image, local_image_row_length), image_size[0]/dims[0], img_recv_subsection_t, 0, cart_comm);
+    MPI_Barrier(cart_comm);
 }
 
 // Exchange borders with neighbour ranks
 void exchange(){
     //MPI_Sends and receives
-    MPI_Send(*buf, 1, border_row_t, north, 47, cart_comm);
-    MPI_Recv(*buf, 1, border_row_t, south, 47, cart_comm, status);
+    /*int tmp = sizeof((unsigned char)*lsize);
+    int final_row_send = tmp - sizeof((unsigned char)*local_image_size[1]);
+    int final_col_send = tmp - sizeof((unsigned char)*local_image_Size[0]);
+    int final_row_recv = tmp - (2 * sizeof((unsigned char)*local_image_size[1]));
+    int final_col_recv = tmp - (2 * sizeof((unsigned char)*local_image_Size[0]));
+    MPI_Send(local_region, 1, border_row_t, north, 47, cart_comm);
+    MPI_Recv(local_region[tmp - (2 * sizeof((unsigned char)*local_image_size[1]))], 1, border_row_t, south, 47, cart_comm, status);
 
-    MPI_Send(*buf, 1, border_col_t, east, 47, cart_comm);
-    MPI_Recv(*buf, 1, border_row_t, west, 47, cart_comm, status);
+    MPI_Send(local_region, 1, border_col_t, east, 47, cart_comm);
+    MPI_Recv(*buf, 1, border_col_t, west, 47, cart_comm, status);
 
     MPI_Send(*buf, 1, border_row_t, south, 47, cart_comm);
     MPI_Recv(*buf, 1, border_row_t, north, 47, cart_comm, status);
 
     MPI_Send(*buf, 1, border_col_t, west, 47, cart_comm);
-    MPI_Recv(*buf, 1, border_row_t, east, 47, cart_comm, status);
+    MPI_Recv(*buf, 1, border_col_t, east, 47, cart_comm, status);*/
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-    MPI_Gatherv(local_region+(sizeof(unsigned char)*(localRowStride)),
+    MPI_Gatherv(local_region+(sizeof(unsigned char)*(local_image_col_length)),
                 1, img_recv_subsection_t, region, recvcounts,
                 displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
 }
@@ -147,7 +159,7 @@ int inside(pixel_t p){
 
 // Adding seeds in corners.
 void add_seeds(stack_t* stack){
-    puts("Entering add_seeds()!");
+    //puts("Entering add_seeds()!");
     int seeds [8];
     seeds[0] = 5;
     seeds[1] = 5;
@@ -162,7 +174,7 @@ void add_seeds(stack_t* stack){
         pixel_t seed;
         seed.x = abs(seeds[i*2] - local_image_size[1]);
         seed.y = abs(seeds[i*2+1] - local_image_size[0]);
-        printf("Rank %d, seed[%d]: x=%d, y=%d\n", rank, i, seed.x, seed.y);
+        //printf("Rank %d, seed[%d]: x=%d, y=%d\n", rank, i, seed.x, seed.y);
 
         if(inside(seed)){
             push(stack, seed);
@@ -228,6 +240,7 @@ void load_and_allocate_images(int argc, char** argv){
     }
 
     if(rank == 0){
+
         image = read_bmp(argv[1]);
         region = (unsigned char*)calloc(sizeof(unsigned char),totSize);
     }
@@ -239,6 +252,9 @@ void load_and_allocate_images(int argc, char** argv){
     int lsize_border = (local_image_size[0] + 2)*(local_image_size[1] + 2);
     local_image = (unsigned char*)malloc(sizeof(unsigned char)*lsize_border);
     local_region = (unsigned char*)calloc(sizeof(unsigned char),lsize_border);
+    if (0 == rank){
+        printf("local_image_size: %p\n", lsize_border*sizeof(unsigned char));
+    }
 }
 
 void write_image(){
@@ -256,8 +272,8 @@ int main(int argc, char** argv){
     //puts("Done with init_mpi()");
 
     load_and_allocate_images(argc, argv);
-    localRowStride = sizeof(unsigned char)*(local_image_size[0]+2);
-    localColStride = sizeof(unsigned char)*(local_image_size[1]+2);
+    local_image_col_length = sizeof(unsigned char)*(local_image_size[0]+2);
+    local_image_row_length = sizeof(unsigned char)*(local_image_size[1]+2);
     //puts("Done with load_and_allocate_images()");
     create_types();
     //puts("Done with create_types()");
@@ -272,23 +288,23 @@ int main(int argc, char** argv){
     //Set displs for where to start sending data to each rank from, in Scatterv and Gatherv
     for (int i = 0; i < dims[0]; ++i){
         for (int j = 0; j < dims[1]; ++j){
-            sendcounts[(i*dims[0]) + j] = 1;
+            sendcounts[(i*dims[0]) + j] = image_size[0]/dims[0];
             recvcounts[(i*dims[0]) + j] = lsize;
             displs[(i*dims[0]) + j] = i*y_axis*image_tot_row_length + j*x_axis;
         }
     }
 
-    puts("Before distribute_image() in main()");
+    //puts("Before distribute_image() in main()");
     distribute_image();
     puts("After distribute_image() in main()");
 
     stack_t* stack = new_stack();
     add_seeds(stack);
     int emptyStack = 1, recvbuf = 1;
-    printf("Rank %d entering grow_region() while-loop!\n", rank);
+    //printf("Rank %d entering grow_region() while-loop!\n", rank);
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region(stack);
-        printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
+        //printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
         //exchange();
     }
 
