@@ -4,7 +4,7 @@ clustis : region
 	qrsh -cwd mpirun -n 1 region pic1.bmp
 
 run : region
-	mpirun -n 4 region pic1.bmp
+	nice mpirun -n 2 region pic1.bmp
 
 val : region
 	valgrind mpirun -n 4 region pic1.bmp

@@ -112,7 +112,7 @@ void distribute_image(){
 }
 
 // Exchange borders with neighbour ranks
-void exchange(stack_t* stack){
+void exchange(/*stack_t* stack*/){
     //
     //
 }
@@ -263,16 +263,16 @@ int main(int argc, char** argv){
     distribute_image();
     //puts("After distribute_image() in main()");
 
-    for (int i = 0; i < localRowStride*localColStride; ++i){
+    /*for (int i = 0; i < localRowStride*localColStride; ++i){
         local_region[i] = 1;
-    }
-
-    /*int emptyStack = 1, recvbuf;
-    while(MPI_SUCCESS == MPI_Reduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM,
-        0, cart_comm) && ){
-        emptyStack = grow_region();
-        exchange();
     }*/
+    printf("Rank %d entering grow_region() while-loop!\n", rank);
+    int emptyStack = 1, recvbuf = 1;
+    while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
+        emptyStack = grow_region();
+        printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
+        //exchange();
+    }
 
     //puts("Before gather_region() in main()");
     gather_region();
