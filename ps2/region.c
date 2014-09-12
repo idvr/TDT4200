@@ -100,6 +100,7 @@ void create_types(){
     MPI_Type_commit(&border_row_t);
     MPI_Type_commit(&scattrv_send_subsection_t);
     MPI_Type_commit(&scattrv_recv_subsection_t);
+    MPI_Type_commit(&gatherv_send_subsection_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
