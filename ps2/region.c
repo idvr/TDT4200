@@ -83,9 +83,9 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 // Create and commit MPI datatypes
 void create_types(){
     //For sending the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
+    MPI_Type_vector(local_image_size[0], local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
     //For receiving the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(local_image_size[1], local_image_size[0], localColStride, MPI_UNSIGNED_CHAR, &scattrv_recv_subsection_t);
+    MPI_Type_vector(local_image_size[0], local_image_size[1], localRowStride, MPI_UNSIGNED_CHAR, &scattrv_recv_subsection_t);
 
     //For sending the subsections of each rank into rank 0 in gatherv
     MPI_Type_vector(local_image_size[0], local_image_size[1], localRowStride, MPI_UNSIGNED_CHAR, &gatherv_send_subsection_t);
@@ -240,6 +240,11 @@ int main(int argc, char** argv){
     totSize = image_size[0]*image_size[1];
     init_mpi(argc, argv);
     //puts("Done with init_mpi()");
+    /*printf("\nRank %d: ", rank);
+    for (int i = 0; i < 2; ++i){
+        printf("coords[%d] = %d\t", i, coords[i]);
+    } printf("\n");*/
+
     load_and_allocate_images(argc, argv);
     localRowStride = sizeof(unsigned char)*(local_image_size[0]+2);
     localColStride = sizeof(unsigned char)*(local_image_size[1]+2);
@@ -250,28 +255,51 @@ int main(int argc, char** argv){
     sendcounts = (int*) malloc(sizeof(int)*size);
     recvcounts = (int*) malloc(sizeof(int)*size);
 
+
     int y_axis = (local_image_size[0]);
     int x_axis = (local_image_size[1]);
     int image_tot_row_length = image_size[0];
-    //Set displs for where to start sending data to each rank from, in Scatterv
-    for (int i = 0; i < size; ++i){
-        sendcounts[i] = 1;
-        recvcounts[i] = lsize;
-        displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
+    //Set displs for where to start sending data to each rank from, in Scatterv and Gatherv
+    for (int i = 0; i < dims[0]; ++i){
+        for (int j = 0; j < dims[1]; ++j){
+            sendcounts[(i*dims[0]) + j] = 1;
+            recvcounts[(i*dims[0]) + j] = lsize;
+            displs[(i*dims[0]) + j] = i*y_axis*image_tot_row_length + j*x_axis;
+        }
     }
+    if (rank == 1){
+        printf("\nRank %d: ", rank);
+        for (int i = 0; i < size; ++i){
+            printf("displs[%d] = %d\t", i, displs[i]);
+        } printf("\n");
+    }
+    /*for (int i = 0; i < size; ++i){
+        displs[i] = coords[0]*y_axis*image_tot_row_length + coords[1]*x_axis;
+    }*/
+
+    /*if (rank == 1){
+        //printf("local_image_size[0] = %d, local_image_size[1] = %d\n", local_image_size[0], local_image_size[1]);
+        printf("Rank %d: ", rank);
+        for (int i = 0; i < size; ++i){
+            printf("coords[%d] = %d\t", i, coords[i]);
+        } printf("\n");
+        for (int i = 0; i < size; ++i){
+            printf("displs[%d] = %d\t", i, displs[i]);
+        } printf("\n");
+    }*/
     //puts("Before distribute_image() in main()");
     distribute_image();
     //puts("After distribute_image() in main()");
-    for (int i = 0; i < localRowStride*localColStride; ++i){
+    /*for (int i = 0; i < localRowStride*localColStride; ++i){
         local_region[i] = 1;
-    }
-    /*printf("Rank %d entering grow_region() while-loop!\n", rank);
+    }*/
+    printf("Rank %d entering grow_region() while-loop!\n", rank);
     int emptyStack = 1, recvbuf = 1;
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region();
         printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
         //exchange();
-    }*/
+    }
 
     //puts("Before gather_region() in main()");
     gather_region();
