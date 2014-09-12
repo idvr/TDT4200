@@ -119,20 +119,9 @@ void exchange(stack_t* stack){
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-    /*int MPI_Gatherv(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-                void *recvbuf, const int *recvcounts, const int *displs,
-                MPI_Datatype recvtype, int root, MPI_Comm comm)*/
-    puts("Entered gather_region");
     MPI_Gatherv(local_region+(sizeof(unsigned char)*(local_image_size[0]+2)),
                 1, gatherv_send_subsection_t, region, recvcounts,
                 displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
-    puts("Exited gather_region");
-}
-
-// Determine if all ranks are finished. You may have to add arguments.
-// You dont have to have this check as a seperate function
-int finished(){
-    return 0;
 }
 
 // Check if pixel is inside local image
@@ -274,6 +263,10 @@ int main(int argc, char** argv){
     distribute_image();
     //puts("After distribute_image() in main()");
 
+    for (int i = 0; i < localRowStride*localColStride; ++i){
+        local_region[i] = 1;
+    }
+
     /*int emptyStack = 1, recvbuf;
     while(MPI_SUCCESS == MPI_Reduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM,
         0, cart_comm) && ){
@@ -281,11 +274,14 @@ int main(int argc, char** argv){
         exchange();
     }*/
 
+    //puts("Before gather_region() in main()");
     gather_region();
+    //puts("After gather_region() in main()");
 
     MPI_Finalize();
 
     write_image();
 
+    puts("Program successfully completed!");
     exit(0);
 }
