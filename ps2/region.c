@@ -144,8 +144,9 @@ void add_seeds(stack_t* stack){
 
     for(int i = 0; i < 4; i++){
         pixel_t seed;
-        seed.x = seeds[i*2] - coords[1]*local_image_size[1];
-        seed.y = seeds[i*2+1] -coords[0]*local_image_size[0];
+        seed.x = abs(seeds[i*2] - local_image_size[1]);
+        seed.y = abs(seeds[i*2+1] - local_image_size[0]);
+        printf("Rank %d, seed[%d]: x=%d, y=%d\n", rank, i, seed.x, seed.y);
 
         if(inside(seed)){
             push(stack, seed);
@@ -188,7 +189,7 @@ int grow_region(){
 }
 
 // MPI initialization, setting up cartesian communicator
-int init_mpi(int argc, char** argv){
+void init_mpi(int argc, char** argv){
     MPI_Init(&argc, &argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
     if ((size & (size-1)) != 0){
@@ -204,7 +205,6 @@ int init_mpi(int argc, char** argv){
 
     MPI_Cart_shift(cart_comm, 0, 1, &north, &south);
     MPI_Cart_shift(cart_comm, 1, 1, &west, &east);
-    return 0;
 }
 
 void load_and_allocate_images(int argc, char** argv){
@@ -262,17 +262,16 @@ int main(int argc, char** argv){
     //puts("Before distribute_image() in main()");
     distribute_image();
     //puts("After distribute_image() in main()");
-
-    /*for (int i = 0; i < localRowStride*localColStride; ++i){
+    for (int i = 0; i < localRowStride*localColStride; ++i){
         local_region[i] = 1;
-    }*/
-    printf("Rank %d entering grow_region() while-loop!\n", rank);
+    }
+    /*printf("Rank %d entering grow_region() while-loop!\n", rank);
     int emptyStack = 1, recvbuf = 1;
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region();
         printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
         //exchange();
-    }
+    }*/
 
     //puts("Before gather_region() in main()");
     gather_region();
