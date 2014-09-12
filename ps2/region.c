@@ -107,7 +107,7 @@ void create_types(){
 void distribute_image(){
     MPI_Scatterv(image, sendcounts, displs, scattrv_send_subsection_t,
         //The immediately below line is to make sure that the data transferred is sent to the right place in memory
-        local_image+(sizeof(unsigned char)*(local_image_size[0]+2)),
+        local_image+(sizeof(unsigned char)*(localRowStride)),
         lsize, scattrv_recv_subsection_t, 0, cart_comm);
 }
 
@@ -119,7 +119,7 @@ void exchange(/*stack_t* stack*/){
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-    MPI_Gatherv(local_region+(sizeof(unsigned char)*(local_image_size[0]+2)),
+    MPI_Gatherv(local_region+(sizeof(unsigned char)*(localRowStride)),
                 1, gatherv_send_subsection_t, region, recvcounts,
                 displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
 }
