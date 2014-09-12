@@ -118,16 +118,17 @@ void distribute_image(){
 
 // Exchange borders with neighbour ranks
 void exchange(){
-    //MPI_Send
+    //MPI_Sends and receives
     MPI_Send(*buf, 1, border_row_t, north, 47, cart_comm);
-    MPI_Send(*buf, 1, border_col_t, east, 47, cart_comm);
-    MPI_Send(*buf, 1, border_row_t, south, 47, cart_comm);
-    MPI_Send(*buf, 1, border_col_t, west, 47, cart_comm);
-
-    //MPI_Recv
     MPI_Recv(*buf, 1, border_row_t, south, 47, cart_comm, status);
+
+    MPI_Send(*buf, 1, border_col_t, east, 47, cart_comm);
     MPI_Recv(*buf, 1, border_row_t, west, 47, cart_comm, status);
+
+    MPI_Send(*buf, 1, border_row_t, south, 47, cart_comm);
     MPI_Recv(*buf, 1, border_row_t, north, 47, cart_comm, status);
+
+    MPI_Send(*buf, 1, border_col_t, west, 47, cart_comm);
     MPI_Recv(*buf, 1, border_row_t, east, 47, cart_comm, status);
 }
 
