@@ -33,16 +33,14 @@ int rank,                       // MPI rank
     local_image_size[2],        // Size of local part of image (not including border)
     *recvcounts,                // Size of how much each process sends rank == 0
     *sendcounts,                // Size of how much each process is sent from rank == 0
-    *displs,                    // List with displacements that go along with sendcounts
-    local_image_col_length,             // Stridelength from start of one row to another in local image/region
-    local_image_row_length;             // Stridelength from start of one col to another in local image/region
+    *displs;                    // List with displacements that go along with sendcounts
 
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
 MPI_Datatype    border_row_t,
                 border_col_t,
-                img_recv_subsection_t,
+                img_subsection_t,
                 scattrv_send_subsection_t;
 
 // For MPI_Recv()
@@ -88,62 +86,67 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
     return diff < 2;
 }
 
-unsigned char* chrsz(unsigned char* ptr, int inpt){
-    return ptr +
-        (sizeof(unsigned char)*inpt);
+size_t chrsz(int inpt){
+    return (sizeof(unsigned char)*inpt);
 }
 
 
 // Create and commit MPI datatypes
 void create_types(){
+    //For receiving the subsections of each corresponding rank in scatterv.
+    // and sending the subsections back to root again in gatherv
+    MPI_Type_vector(1, icol, chrsz(2), MPI_UNSIGNED_CHAR, &img_subsection_t);
     //For sending the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(1, local_image_size[1], image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
-    //For receiving the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(1, local_image_size[1], 2, MPI_UNSIGNED_CHAR, &img_recv_subsection_t);
+    MPI_Type_vector(1, icol, image_size[1], MPI_UNSIGNED_CHAR, &scattrv_send_subsection_t);
 
     //For rows that neighbour other processes
-    MPI_Type_contiguous(local_image_size[1], MPI_UNSIGNED_CHAR, &border_row_t);
+    MPI_Type_contiguous(irow, MPI_UNSIGNED_CHAR, &border_row_t);
     //For coloumns that neighbour other processes
-    MPI_Type_vector(local_image_size[0], 1, local_image_row_length, MPI_UNSIGNED_CHAR, &border_col_t);
+    MPI_Type_vector(icol, 1, orow, MPI_UNSIGNED_CHAR, &border_col_t);
 
     //Commit the above
     MPI_Type_commit(&border_col_t);
     MPI_Type_commit(&border_row_t);
+    MPI_Type_commit(&img_subsection_t);
     MPI_Type_commit(&scattrv_send_subsection_t);
-    MPI_Type_commit(&img_recv_subsection_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
+    ptr = local_image;
     if (0 == rank){
-        for (int i = 0; i < size; ++i){
-            printf("sendcounts[%d] = %d & displs[%d] = %d\n", i, sendcounts[i], i, displs[i]);
-        }
-        printf("Address of image: %p\n", image);
-        printf("Address of locale image: %p\n", local_image);
-        printf("Size of added value: %p\n", (sizeof(unsigned char)*(local_image_col_length)));
-        printf("Local address function input: %p\n", chrsz(local_image,local_image_col_length));
     }
-    MPI_Scatterv(image, sendcounts, displs, scattrv_send_subsection_t,
-        //The immediately below line is to make sure that the data transferred is sent to the right place in memory
-        chrsz(local_image, local_image_row_length), image_size[0]/dims[0], img_recv_subsection_t, 0, cart_comm);
+    MPI_Scatterv(image, sendcounts, displs, scattrv_send_subsection_t, &(ptr[orow+1]),
+                 icol, img_subsection_t, 0, cart_comm);
     MPI_Barrier(cart_comm);
 }
 
 // Exchange borders with neighbour ranks
 void exchange(){
     //Send north and receive from south
+    if (0 == rank){
+        puts("Sending north!");
+    }
     MPI_Send(&(ptr[orow+1]), 1, border_row_t, north, 47, cart_comm);
     MPI_Recv(&  (ptr[bsize-orow+1]), 1, border_row_t, south, 47, cart_comm, &status);
 
+    if (0 == rank){
+        puts("Sending east!");
+    }
     //Send east and receive from west
     MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 47, cart_comm);
     MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm, &status);
 
+    if (0 == rank){
+        puts("Sending south!");
+    }
     //Send south and receive from north
     MPI_Send(&(ptr[bsize-(2*orow)+1]), 1, border_row_t, south, 47, cart_comm);
     MPI_Recv(&(ptr[1]), 1, border_row_t, north, 47, cart_comm, &status);
 
+    if (0 == rank){
+        puts("Sending west!");
+    }
     //Send west and receive from east
     MPI_Send(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm);
     MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 47, cart_comm, &status);
@@ -151,15 +154,14 @@ void exchange(){
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-    MPI_Gatherv(local_region+(sizeof(unsigned char)*(local_image_col_length)),
-                1, img_recv_subsection_t, region, recvcounts,
-                displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
+    MPI_Gatherv(&(local_region[orow+1]), 1, img_subsection_t, region,
+        recvcounts, displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
 }
 
 // Check if pixel is inside local image
 int inside(pixel_t p){
-    return (p.x >= 0 && p.x < local_image_size[1] &&
-            p.y >= 0 && p.y < local_image_size[0]);
+    return (p.x >= 0 && p.x < irow &&
+            p.y >= 0 && p.y < icol);
 }
 
 // Adding seeds in corners.
@@ -187,13 +189,15 @@ void add_seeds(stack_t* stack){
     }
 }
 
-// Region growing, serial implementation
+// Region growing, parallell implementation
 int grow_region(stack_t* stack){
-    int stackEmpty = 0;
+    ptr = local_region;
+    int stackNotEmpty = 0;
+
     while(stack->size > 0){
-        stackEmpty = 1;
+        stackNotEmpty = 1;
         pixel_t pixel = pop(stack);
-        region[pixel.y * local_image_size[1] + pixel.x] = 1;
+        ptr[(pixel.y*orow) + pixel.x + 1] = 1;
 
         int dx[4] = {0,0,1,-1}, dy[4] = {1,-1,0,0};
         for(int c = 0; c < 4; c++){
@@ -205,17 +209,17 @@ int grow_region(stack_t* stack){
                 continue;
             }
 
-            if(region[candidate.y * local_image_size[1] + candidate.x]){
+            if(ptr[(candidate.y*orow) + candidate.x + 1]){
                 continue;
             }
 
-            if(similar(image, pixel, candidate)){
-                region[candidate.x + candidate.y * local_image_size[1]] = 1;
+            if(similar(local_image, pixel, candidate)){
+                ptr[candidate.x + (candidate.y*orow) + 1] = 1;
                 push(stack,candidate);
             }
         }
     }
-    return stackEmpty;
+    return stackNotEmpty;
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -274,8 +278,6 @@ int main(int argc, char** argv){
     //puts("Done with init_mpi()");
 
     load_and_allocate_images(argc, argv);
-    local_image_col_length = sizeof(unsigned char)*(local_image_size[0]+2);
-    local_image_row_length = sizeof(unsigned char)*(local_image_size[1]+2);
     //puts("Done with load_and_allocate_images()");
     create_types();
     //puts("Done with create_types()");
@@ -283,36 +285,32 @@ int main(int argc, char** argv){
     sendcounts = (int*) malloc(sizeof(int)*size);
     recvcounts = (int*) malloc(sizeof(int)*size);
 
-
-    int y_axis = (local_image_size[0]);
-    int x_axis = (local_image_size[1]);
-    int image_tot_row_length = image_size[0];
+    int image_tot_row_length = image_size[1];
     //Set displs for where to start sending data to each rank from, in Scatterv and Gatherv
     for (int i = 0; i < dims[0]; ++i){
         for (int j = 0; j < dims[1]; ++j){
-            sendcounts[(i*dims[0]) + j] = image_size[0]/dims[0];
+            sendcounts[(i*dims[0]) + j] = icol;
             recvcounts[(i*dims[0]) + j] = lsize;
-            displs[(i*dims[0]) + j] = i*y_axis*image_tot_row_length + j*x_axis;
+            displs[(i*dims[0]) + j] = i*icol*image_tot_row_length + j*irow;
         }
     }
 
-    //puts("Before distribute_image() in main()");
-    //distribute_image();
+    puts("Before distribute_image() in main()");
+    distribute_image();
     puts("After distribute_image() in main()");
 
     stack_t* stack = new_stack();
     add_seeds(stack);
     int emptyStack = 1, recvbuf = 1;
-    //printf("Rank %d entering grow_region() while-loop!\n", rank);
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region(stack);
-        //printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
-        exchange();
+        //exchange();
     }
+    //printf("Rank\t\tgrow_region() return value\n%d\t\t%d\n\n", emptyStack, rank);
 
     //puts("Before gather_region() in main()");
-    gather_region();
-    //puts("After gather_region() in main()");
+    //gather_region();
+    puts("After gather_region() in main()");
 
     MPI_Finalize();
 
