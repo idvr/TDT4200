@@ -1,8 +1,9 @@
-#include <stdio.h>
-#include <stdlib.h>
+#include "bmp.h"
 #include <mpi.h>
 #include <math.h>
-#include "bmp.h"
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
 
 typedef struct{
     int x;
@@ -43,7 +44,10 @@ MPI_Datatype    border_row_t,
                 img_subsection_t,
                 pack_t;
 
-// For MPI_Recv()
+//For MPI_Isend() and MPI_Irecv()
+MPI_Request *reqs;
+
+// For MPI_Recv() and MPI_Wait()
 MPI_Status status;
 
 unsigned char *ptr,             // shorthand for the below ptrs
@@ -113,63 +117,28 @@ void create_types(){
 
 // Send image from rank 0 to all ranks, from image to local_image
 void distribute_image(){
-    ptr = local_image;
-    //Temporary unpack buffer at node == 0
-    unsigned char *tmpOut = (unsigned char*) malloc(chrsz(totSize));
-    int pos = 0;
+    ptr = image;
+    unsigned char *ptr2 = local_image;
+    if (0 == rank){ //Send to all other processes but self
+        int globRowSz = image_size[1];
 
-    /*MPI_Pack(const void *inbuf, int incount, MPI_Datatype datatype,
-             void *outbuf, int outsize, int *position, MPI_Comm comm)*/
-    if (0 == rank){
-        memset( image , 0, totSize);
-        for( int i = 0 ; i < 256; i++){
-           for( int j = 0 ; j < 256; j++){
-                image[256+i+j*image_size[1] ] = 1;
+        for (int i = 1; i < size; ++i){ //For each process except root (0)
+            for (int j = 0; j < icol; ++j){ //For each contigous row in image
+                MPI_Send(&(ptr[displs[i] + (globRowSz*j)]), irow,
+                            MPI_UNSIGNED_CHAR, i, 51, cart_comm);
             }
         }
-        memset( image+totSize/2, 2, totSize/2);
-        for( int i = 0 ; i < 256; i++){
-            for( int j = 0 ; j < 256; j++){
-                image[256+totSize/2+i+j*image_size[1] ] = 3;
-            }
-        }
-        printf( "\t\t%hhd %hhd\n", image[256*512],image[256]);
 
+        //Unpack and send to local_image on rank 0 without MPI
+        for (int i = 0; i < icol; ++i){
+            memcpy(&(ptr2[(orow*(i+1))+1]), &(ptr[globRowSz*i]), irow);
+        }
+    } else{
+        for (int i = 0; i < icol; ++i){
+            MPI_Recv(&(ptr2[(orow*(i+1))+1]), irow, MPI_UNSIGNED_CHAR, 0, 51, cart_comm, &status);
+        }
     }
-            if (0 == rank){
-                pos = 0;
-                for (int i = 0; i < size; ++i){
-                    MPI_Pack(&(image[displs[i]]), 1, pack_t, tmpOut, chrsz(totSize), &pos, cart_comm);
-                }
-            }
-            sleep(5);
-            unsigned char *tmpIn = (unsigned char*) malloc(chrsz(lsize));
-            /*MPI_Scatter(const void *sendbuf, int sendcount, MPI_Datatype sendtype,
-                       void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
-                       MPI_Comm comm*/
-            MPI_Scatter(tmpOut, image_size[0], MPI_UNSIGNED_CHAR, tmpIn, lsize, MPI_UNSIGNED_CHAR, 0, cart_comm);
-
-            if (0 == rank){
-                int rankpos = rank*lsize;
-                printf("[");
-                for (int i = rankpos; i < rankpos+lsize; ++i){
-                    //printf("%hhd ", tmpIn[i]);
-                }
-
-                printf("]\n");
-                puts("Finished printing...");
-            }
-            MPI_Barrier(cart_comm);
-
-            //Temporary local unpack buffer at each rank
-            pos = 0;
-            /*MPI_Unpack(const void *inbuf, int insize, int *position,
-                       void *outbuf, int outcount, MPI_Datatype datatype,
-                       MPI_Comm comm)*/
-            //MPI_Unpack(tmpIn, lsize, &pos, &(local_image[orow+1]), 1, img_subsection_t, cart_comm);
-
-            MPI_Barrier(cart_comm);
-        }
+}
 
 // Exchange borders with neighbour ranks
 void exchange(){
@@ -314,17 +283,21 @@ void write_image(){
 int main(int argc, char** argv){
     totSize = image_size[0]*image_size[1];
     init_mpi( &argc, &argv);
-    //puts("Done with init_mpi()");
+    //printf("Done with init_mpi()\n");
 
     load_and_allocate_images(argc, argv);
-    //puts("Done with load_and_allocate_images()");
+    //printf("Done with load_and_allocate_images()\n");
+
+    //Creating enough MPI_Requests for all the Isends/Irecvs
+    reqs = malloc(sizeof(MPI_Request)*size*2*icol);
+
     create_types();
-    //puts("Done with create_types()");
+    //printf("Done with create_types()\n");
+
     displs = (int*) malloc(sizeof(int)*size);
+    int image_tot_row_length = image_size[1];
     sendcounts = (int*) malloc(sizeof(int)*size);
     recvcounts = (int*) malloc(sizeof(int)*size);
-
-    int image_tot_row_length = image_size[1];
     //Set displs for where to start sending data to each rank from, in Scatterv and Gatherv
     for (int i = 0; i < dims[0]; ++i){
         for (int j = 0; j < dims[1]; ++j){
@@ -334,20 +307,23 @@ int main(int argc, char** argv){
         }
     }
 
-    printf("Before distribute_image() in main()");
+    //printf("Before distribute_image() in main()\n");
     distribute_image();
-    printf("After distribute_image() in main()");
+    //printf("After distribute_image() in main()\n");
 
-    //stack_t* stack = new_stack();
-    //add_seeds(stack);
+    stack_t* stack = new_stack();
+    add_seeds(stack);
     int emptyStack = 1, recvbuf = 1;
-    /*while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
+    while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region(stack);
-        //exchange();
-    }*/
+        if (0 == rank){
+            printf("About to enter exchange()\n");
+        }
+        exchange();
+    }
     //printf("Rank\t\tgrow_region() return value\n%d\t\t%d\n\n", emptyStack, rank);
 
-    //puts("Before gather_region() in main()");
+    //printf("Before gather_region() in main()");
     //gather_region();
     printf("After gather_region() in main()\n");
 
@@ -355,7 +331,7 @@ int main(int argc, char** argv){
 
     //write_image();
 
-    printf("Program successfully completed!\n|");
+    printf("Program successfully completed!\n");
     //exit(0);
     return 0;
 }
