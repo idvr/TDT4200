@@ -97,12 +97,6 @@ size_t chrsz(int inpt){
 
 // Create and commit MPI datatypes
 void create_types(){
-    //For receiving the subsections of each corresponding rank in scatterv.
-    //For sending the subsections of each corresponding rank in scatterv
-    MPI_Type_vector(irow, icol, image_size[1], MPI_UNSIGNED_CHAR, &pack_t);
-    // and sending the subsections back to root again in gatherv
-    MPI_Type_vector(irow, icol, chrsz(2), MPI_UNSIGNED_CHAR, &img_subsection_t);
-
     //For rows that neighbour other processes
     MPI_Type_contiguous(irow, MPI_UNSIGNED_CHAR, &border_row_t);
     //For coloumns that neighbour other processes
@@ -111,8 +105,6 @@ void create_types(){
     //Commit the above
     MPI_Type_commit(&border_col_t);
     MPI_Type_commit(&border_row_t);
-    MPI_Type_commit(&img_subsection_t);
-    MPI_Type_commit(&pack_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
@@ -162,8 +154,28 @@ void exchange(){
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
 void gather_region(){
-    MPI_Gatherv(&(local_region[orow+1]), 1, img_subsection_t, region,
-                recvcounts, displs, MPI_UNSIGNED_CHAR, 0, cart_comm);
+    ptr = region;
+    unsigned char *ptr2 = local_region;
+    if (0 == rank){
+        int globRowSz = image_size[1];
+        for (int i = 1; i < size; ++i){ //For each process except root (0)
+            for (int j = 0; j < icol; ++j){ //For each contigous row in image
+                MPI_Recv(&(ptr[displs[i] + (globRowSz*j)]), irow,
+                         MPI_UNSIGNED_CHAR, i, 37, cart_comm, &status);
+            }
+        }
+        printf("Finished receiving...\n");
+        //Then transfer memory locally without MPI to region
+        for (int i = 0; i < icol; ++i){ //Transfer locally first
+            memcpy(&(ptr[globRowSz*i]), &(ptr2[(orow*(i+1))+1]), irow);
+        }
+    } else{
+        for (int i = 0; i < icol; ++i){
+            MPI_Send(&(ptr2[(orow*(i+1))+1]), irow, MPI_UNSIGNED_CHAR, 0, 51,
+                     cart_comm);
+        }
+    }
+    MPI_Barrier(cart_comm);
 }
 
 // Check if pixel is inside local image
@@ -316,15 +328,13 @@ int main(int argc, char** argv){
     int emptyStack = 1, recvbuf = 1;
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region(stack);
-        if (0 == rank){
-            printf("About to enter exchange()\n");
-        }
         exchange();
     }
     //printf("Rank\t\tgrow_region() return value\n%d\t\t%d\n\n", emptyStack, rank);
 
-    //printf("Before gather_region() in main()");
-    //gather_region();
+    MPI_Barrier(cart_comm);
+    printf("Before gather_region() in main()\n");
+    gather_region();
     printf("After gather_region() in main()\n");
 
     MPI_Finalize();
