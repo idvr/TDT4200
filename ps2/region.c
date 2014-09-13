@@ -32,17 +32,13 @@ int rank,                       // MPI rank
     north,south,east,west,      // Four neighbouring MPI ranks
     image_size[2] = {512,512},  // Hard coded image size
     local_image_size[2],        // Size of local part of image (not including border)
-    *recvcounts,                // Size of how much each process sends rank == 0
-    *sendcounts,                // Size of how much each process is sent from rank == 0
     *displs;                    // List with displacements that go along with sendcounts
 
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
 MPI_Datatype    border_row_t,
-                border_col_t,
-                img_subsection_t,
-                pack_t;
+                border_col_t;
 
 // For MPI_Recv() and MPI_Wait()
 MPI_Status status;
@@ -86,11 +82,6 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
     int b = im[q.x +  q.y * local_image_size[1]];
     int diff = abs(a-b);
     return diff < 2;
-}
-
-size_t chrsz(int inpt){
-    //Return the size_t of the amount of unsigned chars multiplied with inpt
-    return (sizeof(unsigned char)*inpt);
 }
 
 // Create and commit MPI datatypes
@@ -302,13 +293,10 @@ int main(int argc, char** argv){
 
     displs = (int*) malloc(sizeof(int)*size);
     int image_tot_row_length = image_size[1];
-    sendcounts = (int*) malloc(sizeof(int)*size);
-    recvcounts = (int*) malloc(sizeof(int)*size);
-    //Set displs for where to start sending data to each rank from, in Scatterv and Gatherv
+    //Set displs for where to start sending data to each rank from,
+    // in distribute_image() and gather_region()
     for (int i = 0; i < dims[0]; ++i){
         for (int j = 0; j < dims[1]; ++j){
-            sendcounts[(i*dims[0]) + j] = icol;
-            recvcounts[(i*dims[0]) + j] = lsize;
             displs[(i*dims[0]) + j] = i*icol*image_tot_row_length + j*irow;
         }
     }
