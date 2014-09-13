@@ -44,13 +44,11 @@ MPI_Datatype    border_row_t,
                 img_subsection_t,
                 pack_t;
 
-//For MPI_Isend() and MPI_Irecv()
-MPI_Request *reqs;
-
 // For MPI_Recv() and MPI_Wait()
 MPI_Status status;
 
-unsigned char *ptr,             // shorthand for the below ptrs
+unsigned char *ptr,             // Shorthand for the below ptrs
+              *ptr2,            // Same as above
               *image,           // Entire image, only on rank 0
               *region,          // Region bitmap. 1 if in region, 0 elsewise
               *local_image,     // Local part of image
@@ -136,20 +134,20 @@ void distribute_image(){
 void exchange(){
     ptr = local_region;
     //Send north and receive from south
-    MPI_Send(&(ptr[orow+1]), 1, border_row_t, north, 47, cart_comm);
-    MPI_Recv(&(ptr[bsize-orow+1]), 1, border_row_t, south, 47, cart_comm, &status);
+    MPI_Send(&(ptr[orow+1]), 1, border_row_t, north, 0, cart_comm);
+    MPI_Recv(&(ptr[bsize-orow+1]), 1, border_row_t, south, 0, cart_comm, &status);
 
     //Send east and receive from west
-    MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 47, cart_comm);
-    MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm, &status);
+    MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 1, cart_comm);
+    MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 1, cart_comm, &status);
 
     //Send south and receive from north
-    MPI_Send(&(ptr[bsize-(2*orow)+1]), 1, border_row_t, south, 47, cart_comm);
-    MPI_Recv(&(ptr[1]), 1, border_row_t, north, 47, cart_comm, &status);
+    MPI_Send(&(ptr[bsize-(2*orow)+1]), 1, border_row_t, south, 2, cart_comm);
+    MPI_Recv(&(ptr[1]), 1, border_row_t, north, 2, cart_comm, &status);
 
     //Send west and receive from east
-    MPI_Send(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm);
-    MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 47, cart_comm, &status);
+    MPI_Send(&(ptr[orow]), 1, border_col_t, west, 3, cart_comm);
+    MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 3, cart_comm, &status);
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
@@ -164,18 +162,17 @@ void gather_region(){
                          MPI_UNSIGNED_CHAR, i, 37, cart_comm, &status);
             }
         }
-        printf("Finished receiving...\n");
+
         //Then transfer memory locally without MPI to region
         for (int i = 0; i < icol; ++i){ //Transfer locally first
             memcpy(&(ptr[globRowSz*i]), &(ptr2[(orow*(i+1))+1]), irow);
         }
     } else{
         for (int i = 0; i < icol; ++i){
-            MPI_Send(&(ptr2[(orow*(i+1))+1]), irow, MPI_UNSIGNED_CHAR, 0, 51,
+            MPI_Send(&(ptr2[(orow*(i+1))+1]), irow, MPI_UNSIGNED_CHAR, 0, 37,
                      cart_comm);
         }
     }
-    MPI_Barrier(cart_comm);
 }
 
 // Check if pixel is inside local image
@@ -300,9 +297,6 @@ int main(int argc, char** argv){
     load_and_allocate_images(argc, argv);
     //printf("Done with load_and_allocate_images()\n");
 
-    //Creating enough MPI_Requests for all the Isends/Irecvs
-    reqs = malloc(sizeof(MPI_Request)*size*2*icol);
-
     create_types();
     //printf("Done with create_types()\n");
 
@@ -332,16 +326,15 @@ int main(int argc, char** argv){
     }
     //printf("Rank\t\tgrow_region() return value\n%d\t\t%d\n\n", emptyStack, rank);
 
-    MPI_Barrier(cart_comm);
-    printf("Before gather_region() in main()\n");
+    //printf("Before gather_region() in main()\n");
     gather_region();
-    printf("After gather_region() in main()\n");
+    //printf("After gather_region() in main()\n");
 
     MPI_Finalize();
 
-    //write_image();
+    write_image();
 
-    printf("Program successfully completed!\n");
+    printf("Rank %d: Program successfully completed!\n", rank);
     //exit(0);
     return 0;
 }
