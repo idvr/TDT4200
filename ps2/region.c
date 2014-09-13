@@ -87,6 +87,7 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 }
 
 size_t chrsz(int inpt){
+    //Return the size_t of the amount of unsigned chars multiplied with inpt
     return (sizeof(unsigned char)*inpt);
 }
 
@@ -124,29 +125,22 @@ void distribute_image(){
 // Exchange borders with neighbour ranks
 void exchange(){
     //Send north and receive from south
-    if (0 == rank){
-        puts("Sending north!");
-    }
+    ptr = local_region;
+    if (0 == rank){puts("Sending north!");}
     MPI_Send(&(ptr[orow+1]), 1, border_row_t, north, 47, cart_comm);
-    MPI_Recv(&  (ptr[bsize-orow+1]), 1, border_row_t, south, 47, cart_comm, &status);
+    MPI_Recv(&(ptr[bsize-orow+1]), 1, border_row_t, south, 47, cart_comm, &status);
 
-    if (0 == rank){
-        puts("Sending east!");
-    }
+    if (0 == rank){puts("Sending east!");}
     //Send east and receive from west
     MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 47, cart_comm);
     MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm, &status);
 
-    if (0 == rank){
-        puts("Sending south!");
-    }
+    if (0 == rank){puts("Sending south!");}
     //Send south and receive from north
     MPI_Send(&(ptr[bsize-(2*orow)+1]), 1, border_row_t, south, 47, cart_comm);
     MPI_Recv(&(ptr[1]), 1, border_row_t, north, 47, cart_comm, &status);
 
-    if (0 == rank){
-        puts("Sending west!");
-    }
+    if (0 == rank){puts("Sending west!");}
     //Send west and receive from east
     MPI_Send(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm);
     MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 47, cart_comm, &status);
@@ -166,22 +160,20 @@ int inside(pixel_t p){
 
 // Adding seeds in corners.
 void add_seeds(stack_t* stack){
-    //puts("Entering add_seeds()!");
     int seeds [8];
     seeds[0] = 5;
     seeds[1] = 5;
-    seeds[2] = local_image_size[1]-5;
+    seeds[2] = irow-5;
     seeds[3] = 5;
-    seeds[4] = local_image_size[1]-5;
-    seeds[5] = local_image_size[0]-5;
+    seeds[4] = irow-5;
+    seeds[5] = icol-5;
     seeds[6] = 5;
-    seeds[7] = local_image_size[0]-5;
+    seeds[7] = icol-5;
 
     for(int i = 0; i < 4; i++){
         pixel_t seed;
-        seed.x = abs(seeds[i*2] - local_image_size[1]);
-        seed.y = abs(seeds[i*2+1] - local_image_size[0]);
-        //printf("Rank %d, seed[%d]: x=%d, y=%d\n", rank, i, seed.x, seed.y);
+        seed.x = abs(seeds[i*2] - irow);
+        seed.y = abs(seeds[i*2+1] - icol);
 
         if(inside(seed)){
             push(stack, seed);
@@ -296,7 +288,7 @@ int main(int argc, char** argv){
     }
 
     puts("Before distribute_image() in main()");
-    distribute_image();
+    //distribute_image();
     puts("After distribute_image() in main()");
 
     stack_t* stack = new_stack();
@@ -304,8 +296,8 @@ int main(int argc, char** argv){
     int emptyStack = 1, recvbuf = 1;
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region(stack);
-        //exchange();
     }
+    exchange();
     //printf("Rank\t\tgrow_region() return value\n%d\t\t%d\n\n", emptyStack, rank);
 
     //puts("Before gather_region() in main()");
