@@ -18,7 +18,12 @@ typedef struct{
 // Global variables
 int rank,                       // MPI rank
     size,                       // Number of MPI processes
-    lsize,                      // Total size of local image char array
+    irow,                       // Inner row length in local char array
+    icol,                       // Inner col length in local char array
+    orow,                       // Outer row length in local char array
+    ocol,                       // Outer col length in local char array
+    lsize,                      // Inner size of local image char array
+    bsize,                      // Outer size of local image char array
     totSize,                    // Total size of global image char array
     dims[2],                    // Dimensions of MPI grid
     coords[2],                  // Coordinate of this rank in MPI grid
@@ -40,9 +45,11 @@ MPI_Datatype    border_row_t,
                 img_recv_subsection_t,
                 scattrv_send_subsection_t;
 
+// For MPI_Recv()
 MPI_Status status;
 
-unsigned char *image,           // Entire image, only on rank 0
+unsigned char *ptr,             // shorthand for the below ptrs
+              *image,           // Entire image, only on rank 0
               *region,          // Region bitmap. 1 if in region, 0 elsewise
               *local_image,     // Local part of image
               *local_region;    // Local part of region bitmap
@@ -125,23 +132,21 @@ void distribute_image(){
 
 // Exchange borders with neighbour ranks
 void exchange(){
-    //MPI_Sends and receives
-    /*int tmp = sizeof((unsigned char)*lsize);
-    int final_row_send = tmp - sizeof((unsigned char)*local_image_size[1]);
-    int final_col_send = tmp - sizeof((unsigned char)*local_image_Size[0]);
-    int final_row_recv = tmp - (2 * sizeof((unsigned char)*local_image_size[1]));
-    int final_col_recv = tmp - (2 * sizeof((unsigned char)*local_image_Size[0]));
-    MPI_Send(local_region, 1, border_row_t, north, 47, cart_comm);
-    MPI_Recv(local_region[tmp - (2 * sizeof((unsigned char)*local_image_size[1]))], 1, border_row_t, south, 47, cart_comm, status);
+    //Send north and receive from south
+    MPI_Send(&(ptr[orow+1]), 1, border_row_t, north, 47, cart_comm);
+    MPI_Recv(&  (ptr[bsize-orow+1]), 1, border_row_t, south, 47, cart_comm, &status);
 
-    MPI_Send(local_region, 1, border_col_t, east, 47, cart_comm);
-    MPI_Recv(*buf, 1, border_col_t, west, 47, cart_comm, status);
+    //Send east and receive from west
+    MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 47, cart_comm);
+    MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm, &status);
 
-    MPI_Send(*buf, 1, border_row_t, south, 47, cart_comm);
-    MPI_Recv(*buf, 1, border_row_t, north, 47, cart_comm, status);
+    //Send south and receive from north
+    MPI_Send(&(ptr[bsize-(2*orow)+1]), 1, border_row_t, south, 47, cart_comm);
+    MPI_Recv(&(ptr[1]), 1, border_row_t, north, 47, cart_comm, &status);
 
-    MPI_Send(*buf, 1, border_col_t, west, 47, cart_comm);
-    MPI_Recv(*buf, 1, border_col_t, east, 47, cart_comm, status);*/
+    //Send west and receive from east
+    MPI_Send(&(ptr[orow]), 1, border_col_t, west, 47, cart_comm);
+    MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 47, cart_comm, &status);
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
@@ -180,14 +185,13 @@ void add_seeds(stack_t* stack){
             push(stack, seed);
         }
     }
-    printf("Exiting add_seeds(), stack->size=%d\n", stack->size);
 }
 
 // Region growing, serial implementation
 int grow_region(stack_t* stack){
-    int stackChanged = 0;
+    int stackEmpty = 0;
     while(stack->size > 0){
-        stackChanged = 1;
+        stackEmpty = 1;
         pixel_t pixel = pop(stack);
         region[pixel.y * local_image_size[1] + pixel.x] = 1;
 
@@ -211,7 +215,7 @@ int grow_region(stack_t* stack){
             }
         }
     }
-    return stackChanged;
+    return stackEmpty;
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -240,21 +244,19 @@ void load_and_allocate_images(int argc, char** argv){
     }
 
     if(rank == 0){
-
         image = read_bmp(argv[1]);
         region = (unsigned char*)calloc(sizeof(unsigned char),totSize);
     }
 
     local_image_size[0] = image_size[0]/dims[0];
     local_image_size[1] = image_size[1]/dims[1];
+    icol = local_image_size[0];
+    irow = local_image_size[1];
 
-    lsize = local_image_size[0]*local_image_size[1];
-    int lsize_border = (local_image_size[0] + 2)*(local_image_size[1] + 2);
-    local_image = (unsigned char*)malloc(sizeof(unsigned char)*lsize_border);
-    local_region = (unsigned char*)calloc(sizeof(unsigned char),lsize_border);
-    if (0 == rank){
-        printf("local_image_size: %p\n", lsize_border*sizeof(unsigned char));
-    }
+    lsize = icol*irow;
+    bsize = (icol + 2)*(irow + 2);
+    local_image = (unsigned char*)malloc(sizeof(unsigned char)*bsize);
+    local_region = (unsigned char*)calloc(sizeof(unsigned char),bsize);
 }
 
 void write_image(){
@@ -295,7 +297,7 @@ int main(int argc, char** argv){
     }
 
     //puts("Before distribute_image() in main()");
-    distribute_image();
+    //distribute_image();
     puts("After distribute_image() in main()");
 
     stack_t* stack = new_stack();
@@ -305,7 +307,7 @@ int main(int argc, char** argv){
     while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
         emptyStack = grow_region(stack);
         //printf("Rank\tReturn value\n%d\t%d\n\n", emptyStack, rank);
-        //exchange();
+        exchange();
     }
 
     //puts("Before gather_region() in main()");
