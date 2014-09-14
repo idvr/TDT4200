@@ -239,7 +239,15 @@ int grow_region(stack_t* stack){
     ptr = local_region;
     int stackNotEmpty = 0;
 
-    while(stack->size > 0){
+    for (int i = 0; i < bsize; ++i){
+        if (150 > local_image[i]){
+            ptr[i] = 1;
+        }
+    }
+
+    return 0;
+
+    /*while(stack->size > 0){
         stackNotEmpty = 1;
         pixel_t pixel = pop(stack);
         ptr[(pixel.y*orow) + pixel.x] = 1;
@@ -265,7 +273,7 @@ int grow_region(stack_t* stack){
             }
         }
     }
-    return stackNotEmpty;
+    return stackNotEmpty;*/
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -337,7 +345,7 @@ int main(int argc, char** argv){
     // in distribute_image() and gather_region()
     for (int i = 0; i < dims[0]; ++i){
         for (int j = 0; j < dims[1]; ++j){
-            displs[(i*dims[0]) + j] = i*icol*image_tot_row_length + j*irow;
+            displs[(i*dims[1]) + j] = (i*icol*image_tot_row_length) + (j*irow);
         }
     }
 
@@ -360,6 +368,7 @@ int main(int argc, char** argv){
         p1.y = i + 1; p2.y = p1.y;
         push(halo_stack, p1); push(halo_stack, p2);
     }
+
     if (-1 == rank){
         printf("Done with halo stack creation.\n");
         for (int i = 0; i < halo_stack->size; ++i){
@@ -373,11 +382,13 @@ int main(int argc, char** argv){
         exchange(stack, halo_stack);
         filledStack = grow_region(stack);
     }
+    printf("After grow_region() in main()\n");
 
     gather_region();
     //printf("After gather_region() in main()\n");
 
     MPI_Finalize();
+    //printf("After MPI_Finalize() in main()\n");
 
     write_image();
 
