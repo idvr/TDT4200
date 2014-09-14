@@ -146,6 +146,12 @@ void popPixel(stack_t* stack, pixel_t p){
     }
 }
 
+// Check if pixel is inside local image
+int inside(pixel_t p){
+    return (p.x >= 0 && p.x < orow &&
+            p.y >= 0 && p.y < ocol);
+}
+
 // Exchange borders with neighbour ranks
 void exchange(stack_t* stck, stack_t* h_stck){
     ptr = local_region;
@@ -204,12 +210,6 @@ void gather_region(){
     }
 }
 
-// Check if pixel is inside local image
-int inside(pixel_t p){
-    return (p.x >= 0 && p.x < orow &&
-            p.y >= 0 && p.y < ocol);
-}
-
 // Adding seeds in corners.
 void add_seeds(stack_t* stack){
     int seeds [8];
@@ -239,15 +239,15 @@ int grow_region(stack_t* stack){
     ptr = local_region;
     int stackNotEmpty = 0;
 
-    for (int i = 0; i < bsize; ++i){
+    /*for (int i = 0; i < bsize; ++i){
         if (150 > local_image[i]){
             ptr[i] = 1;
         }
     }
 
-    return 0;
+    return 0;*/
 
-    /*while(stack->size > 0){
+    while(stack->size > 0){
         stackNotEmpty = 1;
         pixel_t pixel = pop(stack);
         ptr[(pixel.y*orow) + pixel.x] = 1;
@@ -273,7 +273,7 @@ int grow_region(stack_t* stack){
             }
         }
     }
-    return stackNotEmpty;*/
+    return stackNotEmpty;
 }
 
 // MPI initialization, setting up cartesian communicator
@@ -315,7 +315,7 @@ void load_and_allocate_images(int argc, char** argv){
     ocol = icol + 2;
     orow = irow + 2;
     bsize = ocol*orow;
-    local_image = (unsigned char*)malloc(sizeof(unsigned char)*bsize);
+    local_image = (unsigned char*)calloc(sizeof(unsigned char),bsize);
     local_region = (unsigned char*)calloc(sizeof(unsigned char),bsize);
 }
 
@@ -352,32 +352,35 @@ int main(int argc, char** argv){
     distribute_image();
     //printf("After distribute_image() in main()\n");
 
+    pixel_t p1, p2;
     stack_t* stack = new_stack();
     stack_t* halo_stack = new_stack();
     add_seeds(stack);
     // Fill halo_stack with the pixel coordinates making up the halo
-    for (int i = 0; i < irow; ++i){ //First rows
-        pixel_t p1, p2;
-        p1.y = 0; p2.y = ocol;
-        p1.x = i + 1; p2.x = p1.x;
+    for (int i = 0; i < orow; ++i){ //First rows
+        p1.x = i; p2.x = i;
+        p1.y = 0; p2.y = ocol-1;
         push(halo_stack, p1); push(halo_stack, p2);
     }
-    for (int i = 0; i < icol; ++i){ //Then cols
-        pixel_t p1, p2;
-        p1.x = 0; p2.x = orow;
-        p1.y = i + 1; p2.y = p1.y;
+    for (int i = 0; i < ocol; ++i){ //Then cols
+        p1.y = i; p2.y = i;
+        p1.x = 0; p2.x = orow-1;
         push(halo_stack, p1); push(halo_stack, p2);
     }
 
-    if (-1 == rank){
-        printf("Done with halo stack creation.\n");
+    if (1 == rank){
+        int cntr = 0; pixel_t p;
         for (int i = 0; i < halo_stack->size; ++i){
-            printf("x: %d\ty:%d\n", halo_stack->pixels[i].x, halo_stack->pixels[i].y);
+            p = halo_stack->pixels[i];
+            if(!inside(p)){
+                cntr += 1;
+            }
         }
+        printf("This many pixels were out of bounds on rank %d: %d\n", rank, cntr);
     }
 
     // Run while-loop to empty stack
-    int filledStack = 1, recvbuf = 1;
+    int filledStack = grow_region(stack), recvbuf = 1;
     while(!MPI_Allreduce(&filledStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && (recvbuf != 0)){
         exchange(stack, halo_stack);
         filledStack = grow_region(stack);
