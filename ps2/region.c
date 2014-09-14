@@ -37,8 +37,7 @@ int rank,                       // MPI rank
 MPI_Comm cart_comm;             // Cartesian communicator
 
 // MPI datatypes, you may have to add more.
-MPI_Datatype    border_row_t,
-                border_col_t;
+MPI_Datatype border_col_t;
 
 // For MPI_Recv() and MPI_Wait()
 MPI_Status status;
@@ -86,14 +85,10 @@ int similar(unsigned char* im, pixel_t p, pixel_t q){
 
 // Create and commit MPI datatypes
 void create_types(){
-    //For rows that neighbour other processes
-    MPI_Type_contiguous(irow, MPI_UNSIGNED_CHAR, &border_row_t);
     //For coloumns that neighbour other processes
     MPI_Type_vector(icol, 1, orow, MPI_UNSIGNED_CHAR, &border_col_t);
-
     //Commit the above
     MPI_Type_commit(&border_col_t);
-    MPI_Type_commit(&border_row_t);
 }
 
 // Send image from rank 0 to all ranks, from image to local_image
@@ -121,24 +116,67 @@ void distribute_image(){
     }
 }
 
+int pixelInStack(stack_t* stack, pixel_t p){
+    int inStack = 0;
+    for (int i = 0; i < stack->size; ++i){
+        if (p.x == stack->pixels[i].x &&
+            p.y == stack->pixels[i].y){
+            inStack = 1;
+            break;
+        }
+    }
+    return inStack;
+}
+
+void popPixel(stack_t* stack, pixel_t p){
+    int pos;
+    if (pixelInStack(stack, p)){
+        for (int i = 0; i < stack->size; ++i){
+            if (p.x == stack->pixels[i].x &&
+                p.y == stack->pixels[i].y){
+                pos = i;
+                break;
+            }
+        }
+
+        for (int i = pos; i < stack->size-1; ++i){
+            stack->pixels[i] = stack->pixels[i+1];
+        }
+        stack->size -= 1;
+    }
+}
+
 // Exchange borders with neighbour ranks
-void exchange(){
+void exchange(stack_t* stck, stack_t* h_stck){
     ptr = local_region;
     //Send north and receive from south
-    MPI_Send(&(ptr[orow+1]), 1, border_row_t, north, 0, cart_comm);
-    MPI_Recv(&(ptr[bsize-orow+1]), 1, border_row_t, south, 0, cart_comm, &status);
+    MPI_Send(&(ptr[orow+1]), irow, MPI_UNSIGNED_CHAR, north, 0, cart_comm);
+    MPI_Recv(&(ptr[bsize-orow+1]), irow, MPI_UNSIGNED_CHAR, south, 0, cart_comm, &status);
 
     //Send east and receive from west
     MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 1, cart_comm);
     MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 1, cart_comm, &status);
 
     //Send south and receive from north
-    MPI_Send(&(ptr[bsize-(2*orow)+1]), 1, border_row_t, south, 2, cart_comm);
-    MPI_Recv(&(ptr[1]), 1, border_row_t, north, 2, cart_comm, &status);
+    MPI_Send(&(ptr[bsize-(2*orow)+1]), irow, MPI_UNSIGNED_CHAR, south, 2, cart_comm);
+    MPI_Recv(&(ptr[1]), irow, MPI_UNSIGNED_CHAR, north, 2, cart_comm, &status);
 
     //Send west and receive from east
     MPI_Send(&(ptr[orow]), 1, border_col_t, west, 3, cart_comm);
     MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 3, cart_comm, &status);
+
+    //Then check if the halo pixels have been added to the stack already
+    int cntr = 0, test = 0;
+    while(cntr < h_stck->size){
+        pixel_t p = h_stck->pixels[cntr];
+        if(ptr[p.x + (p.y*orow)]){
+            push(stck, p);
+            popPixel(h_stck, p);
+            test += 1;
+        }
+        ++cntr;
+    }
+    printf("Rank %d added %d pixels to stack after exchange()!\n", rank, test);
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
@@ -177,18 +215,19 @@ void add_seeds(stack_t* stack){
     int seeds [8];
     seeds[0] = 5;
     seeds[1] = 5;
-    seeds[2] = irow-5;
+    seeds[2] = orow-5;
     seeds[3] = 5;
-    seeds[4] = irow-5;
-    seeds[5] = icol-5;
+    seeds[4] = orow-5;
+    seeds[5] = ocol-5;
     seeds[6] = 5;
-    seeds[7] = icol-5;
+    seeds[7] = ocol-5;
 
     for(int i = 0; i < 4; i++){
         pixel_t seed;
-        seed.x = abs(seeds[i*2] - irow);
-        seed.y = abs(seeds[i*2+1] - icol);
+        seed.x = abs(seeds[i*2] - orow);
+        seed.y = abs(seeds[i*2+1] - ocol);
 
+        // Below if-check unnecessary?
         if(inside(seed)){
             push(stack, seed);
         }
@@ -203,7 +242,7 @@ int grow_region(stack_t* stack){
     while(stack->size > 0){
         stackNotEmpty = 1;
         pixel_t pixel = pop(stack);
-        ptr[(pixel.y*orow) + pixel.x + 1] = 1;
+        ptr[(pixel.y*orow) + pixel.x] = 1;
 
         int dx[4] = {0,0,1,-1}, dy[4] = {1,-1,0,0};
         for(int c = 0; c < 4; c++){
@@ -215,12 +254,13 @@ int grow_region(stack_t* stack){
                 continue;
             }
 
-            if(ptr[(candidate.y*orow) + candidate.x + 1]){
+            // If pixel in region already has value set to 1 like on line 202
+            if(ptr[(candidate.y*orow) + candidate.x]){
                 continue;
             }
 
             if(similar(local_image, pixel, candidate)){
-                ptr[candidate.x + (candidate.y*orow) + 1] = 1;
+                ptr[candidate.x + (candidate.y*orow)] = 1;
                 push(stack,candidate);
             }
         }
@@ -232,12 +272,12 @@ int grow_region(stack_t* stack){
 void init_mpi(int *argc, char*** argv){
     MPI_Init(argc, argv);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     if ((size & (size-1)) != 0){
         printf("Need number of processes to be a power of 2!\nExiting program.\n");
         MPI_Finalize();
         exit(-1);
     }
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     MPI_Dims_create(size, 2, dims);
     MPI_Cart_create(MPI_COMM_WORLD, 2, dims, periods, 0, &cart_comm);
@@ -301,19 +341,39 @@ int main(int argc, char** argv){
         }
     }
 
-    //printf("Before distribute_image() in main()\n");
     distribute_image();
     //printf("After distribute_image() in main()\n");
 
     stack_t* stack = new_stack();
+    stack_t* halo_stack = new_stack();
     add_seeds(stack);
-    int filledStack = 1, recvbuf = 1, mpi_areduce_status;
-    while(!MPI_Allreduce(&filledStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && (recvbuf != 0)){
-        filledStack = grow_region(stack);
-        exchange();
+    // Fill halo_stack with the pixel coordinates making up the halo
+    for (int i = 0; i < irow; ++i){ //First rows
+        pixel_t p1, p2;
+        p1.y = 0; p2.y = ocol;
+        p1.x = i + 1; p2.x = p1.x;
+        push(halo_stack, p1); push(halo_stack, p2);
+    }
+    for (int i = 0; i < icol; ++i){ //Then cols
+        pixel_t p1, p2;
+        p1.x = 0; p2.x = orow;
+        p1.y = i + 1; p2.y = p1.y;
+        push(halo_stack, p1); push(halo_stack, p2);
+    }
+    if (-1 == rank){
+        printf("Done with halo stack creation.\n");
+        for (int i = 0; i < halo_stack->size; ++i){
+            printf("x: %d\ty:%d\n", halo_stack->pixels[i].x, halo_stack->pixels[i].y);
+        }
     }
 
-    //printf("Before gather_region() in main()\n");
+    // Run while-loop to empty stack
+    int filledStack = 1, recvbuf = 1;
+    while(!MPI_Allreduce(&filledStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && (recvbuf != 0)){
+        exchange(stack, halo_stack);
+        filledStack = grow_region(stack);
+    }
+
     gather_region();
     //printf("After gather_region() in main()\n");
 
