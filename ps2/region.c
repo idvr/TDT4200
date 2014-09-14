@@ -78,8 +78,8 @@ pixel_t pop(stack_t* stack){
 // Check if two pixels are similar. The hardcoded threshold can be changed.
 // More advanced similarity checks could have been used.
 int similar(unsigned char* im, pixel_t p, pixel_t q){
-    int a = im[p.x +  p.y * local_image_size[1]];
-    int b = im[q.x +  q.y * local_image_size[1]];
+    int a = im[p.x +  (p.y * orow) + 1];
+    int b = im[q.x +  (q.y * orow) + 1];
     int diff = abs(a-b);
     return diff < 2;
 }
@@ -168,8 +168,8 @@ void gather_region(){
 
 // Check if pixel is inside local image
 int inside(pixel_t p){
-    return (p.x >= 0 && p.x < irow &&
-            p.y >= 0 && p.y < icol);
+    return (p.x >= 0 && p.x < orow &&
+            p.y >= 0 && p.y < ocol);
 }
 
 // Adding seeds in corners.
@@ -307,12 +307,11 @@ int main(int argc, char** argv){
 
     stack_t* stack = new_stack();
     add_seeds(stack);
-    int emptyStack = 1, recvbuf = 1;
-    while(MPI_SUCCESS == MPI_Allreduce(&emptyStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && recvbuf != 0){
-        emptyStack = grow_region(stack);
+    int filledStack = 1, recvbuf = 1, mpi_areduce_status;
+    while(!MPI_Allreduce(&filledStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && (recvbuf != 0)){
+        filledStack = grow_region(stack);
         exchange();
     }
-    //printf("Rank\t\tgrow_region() return value\n%d\t\t%d\n\n", emptyStack, rank);
 
     //printf("Before gather_region() in main()\n");
     gather_region();
@@ -323,6 +322,5 @@ int main(int argc, char** argv){
     write_image();
 
     printf("Rank %d: Program successfully completed!\n", rank);
-    //exit(0);
-    return 0;
+    exit(0);
 }
