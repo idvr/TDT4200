@@ -152,6 +152,26 @@ int inside(pixel_t p){
             p.y >= 0 && p.y < ocol);
 }
 
+// Exchange the borders for local_image so that the halo works
+void distribute_halo(){
+    ptr = local_image;
+    //Send north and receive from south
+    MPI_Send(&(ptr[orow+1]), irow, MPI_UNSIGNED_CHAR, north, 0, cart_comm);
+    MPI_Recv(&(ptr[bsize-orow+1]), irow, MPI_UNSIGNED_CHAR, south, 0, cart_comm, &status);
+
+    //Send east and receive from west
+    MPI_Send(&(ptr[(2*orow)-2]), 1, border_col_t, east, 1, cart_comm);
+    MPI_Recv(&(ptr[orow]), 1, border_col_t, west, 1, cart_comm, &status);
+
+    //Send south and receive from north
+    MPI_Send(&(ptr[bsize-(2*orow)+1]), irow, MPI_UNSIGNED_CHAR, south, 2, cart_comm);
+    MPI_Recv(&(ptr[1]), irow, MPI_UNSIGNED_CHAR, north, 2, cart_comm, &status);
+
+    //Send west and receive from east
+    MPI_Send(&(ptr[orow+1]), 1, border_col_t, west, 3, cart_comm);
+    MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 3, cart_comm, &status);
+}
+
 // Exchange borders with neighbour ranks
 void exchange(stack_t* stck, stack_t* h_stck){
     ptr = local_region;
@@ -168,7 +188,7 @@ void exchange(stack_t* stck, stack_t* h_stck){
     MPI_Recv(&(ptr[1]), irow, MPI_UNSIGNED_CHAR, north, 2, cart_comm, &status);
 
     //Send west and receive from east
-    MPI_Send(&(ptr[orow]), 1, border_col_t, west, 3, cart_comm);
+    MPI_Send(&(ptr[orow+1]), 1, border_col_t, west, 3, cart_comm);
     MPI_Recv(&(ptr[(orow*2)-1]), 1, border_col_t, east, 3, cart_comm, &status);
 
     //Then check if the halo pixels have been added to the stack already
@@ -238,14 +258,6 @@ void add_seeds(stack_t* stack){
 int grow_region(stack_t* stack){
     ptr = local_region;
     int stackNotEmpty = 0;
-
-    /*for (int i = 0; i < bsize; ++i){
-        if (150 > local_image[i]){
-            ptr[i] = 1;
-        }
-    }
-
-    return 0;*/
 
     while(stack->size > 0){
         stackNotEmpty = 1;
@@ -351,6 +363,9 @@ int main(int argc, char** argv){
 
     distribute_image();
     //printf("After distribute_image() in main()\n");
+
+    distribute_halo();
+    //printf("After distribute_halo() in main()\n");
 
     pixel_t p1, p2;
     stack_t* stack = new_stack();
