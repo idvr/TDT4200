@@ -132,17 +132,50 @@ be done serially across all the $N$ processes/machines/cores.
 \end{enumerate}
 
 \subsection{Problem 4, Communication}
+\renewcommand{\theenumi}{\alph{enumi})}
+\begin{align*}
+    Datasize &= n\times n\thickspace 2D\thickspace array \\
+    P &= m^2,\thickspace where\thickspace n > m
+\end{align*}
+
+Assumption 1: The root processor is the one that reads and distributes the
+image, instead of all processors having the image at start and only working on
+their subdomain of the image.
+
+Assumption 2: When dealing with exchanges, I assume that in cases where $m^2 \%
+2 != 0$, do not need to be taken into account below in c) and d). However, if
+they were to be taken into account, it would imply a $+1$ on the amount of
+processes. AKA $m^2$ then becomes $m^2 +1$
 
 \begin{enumerate}
-\renewcommand{\theenumi}{\alph{enumi})}
 
-    \item
+    \item Total elements sent and received from root node to distribute and gather image
+    \begin{align*}
+        &= (m^2 - 1)\times (\frac{n}{m})^2\times 2
+    \end{align*}
 
-    \item
+    \item Amount of grid elements sent between all processes per exchange of borders
+    \begin{align*}
+        &= \frac{4n}{m}\times m^2\times 2 = 8n\times m
+    \end{align*}
 
-    \item
+    \item Time spent on an exchange when all processes can communicate full-duplex
+with no overhead at $r$ bytes/second with only one other process at a time, without any startup time per transmission
+    \begin{align*}
+        &= \frac{4n}{m}\times \frac{b}{2r} = \frac{2nb}{mr}
+    \end{align*}
 
-    \item
+
+    \item Total time for execution $T$
+    \begin{align*}
+        T &= T_{comp} + T_{comm} \\
+        T_{comp} &= t \frac{n^2}{m^2},\thickspace t\thickspace is\thickspace constant \\
+        T_{comm} &= \frac{(m^2 -1)\times \frac{n^2}{m^2}\times 2}{1}\times \frac{b}{r} +  \frac{2nb}{mr} = \frac{2b}{r}\times (n^2 - \frac{n^2}{m^2} + \frac{n}{m})
+    \end{align*}
+    Since $\frac{2b}{r}$ is constant, this factor is henceforth referred to as $C$, hence
+    \begin{align*}
+        T &= C \times (n^2 - \frac{n^2}{m^2} + \frac{n}{m})
+    \end{align*}
 
 \end{enumerate}
 
