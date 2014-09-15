@@ -41,13 +41,21 @@ pixel_t pop(stack_t* stack){
     return stack->pixels[stack->size];
 }
 
+// Check if pixel is inside local image
+int inside(pixel_t p, int max_x, int max_y){
+    return (p.x >= 0 && p.x < max_x &&
+            p.y >= 0 && p.y < max_y);
+}
+
 // Check if two pixels are similar. The hardcoded threshold can be changed.
 // More advanced similarity checks could have been used.
-int similar(unsigned char* im, pixel_t p, pixel_t q, int row_stride){
-    int a = im[p.x +  (p.y * row_stride)];
-    int b = im[q.x +  (q.y * row_stride)];
-    int diff = abs(a-b);
-    return diff < 2;
+int similar(unsigned char* im, pixel_t p, pixel_t q, int row_stride, int col_stride){
+    if (inside(p, row_stride, col_stride) && inside(q, row_stride, col_stride)){
+        int a = im[p.x +  p.y*row_stride];
+        int b = im[q.x +  q.y*row_stride];
+        return abs(a-b) < 2;
+    }
+    return 0;
 }
 
 // Create and commit MPI datatypes
@@ -93,7 +101,7 @@ int pixelInStack(stack_t* stack, pixel_t p){
     return inStack;
 }
 
-void popPixel(stack_t* stack, pixel_t p, int rank){
+void popPixel(stack_t* stack, pixel_t p){
     int pos;
     if (pixelInStack(stack, p)){
         for (int i = 0; i < stack->size; ++i){
@@ -109,15 +117,6 @@ void popPixel(stack_t* stack, pixel_t p, int rank){
         }
         stack->size -= 1;
     }
-    if (2 == rank){
-        printf("Rank %d popped pixel x: %d y: %d\n", rank, p.x, p.y);
-    }
-}
-
-// Check if pixel is inside local image
-int inside(pixel_t p, int max_x, int max_y){
-    return (p.x >= 0 && p.x < max_x &&
-            p.y >= 0 && p.y < max_y);
 }
 
 // Exchange the borders for local_image so that the halo works
@@ -142,7 +141,7 @@ void distribute_halo(unsigned char* img, int irow, int orow, int bsize, int nort
 
 // Exchange borders with neighbour ranks
 void exchange(stack_t* stck, stack_t* h_stck, unsigned char* img, int irow, int orow,
-    int bsize, int north, int south, int east, int west, int rank, MPI_Datatype datatype,
+    int bsize, int north, int south, int east, int west, MPI_Datatype datatype,
     MPI_Comm comm, MPI_Status status){
     //Send north and receive from south
     MPI_Send(&(img[orow+1]), irow, MPI_UNSIGNED_CHAR, north, 0, comm);
@@ -161,18 +160,16 @@ void exchange(stack_t* stck, stack_t* h_stck, unsigned char* img, int irow, int 
     MPI_Recv(&(img[(orow*2)-1]), 1, datatype, east, 3, comm, &status);
 
     //Then check if the halo pixels have been added to the stack already
-    int cntr = 0, test = 0;
+    int cntr = 0;
     while(cntr < h_stck->size){
         pixel_t p = h_stck->pixels[cntr];
         if(img[p.x + (p.y*orow)]){
             push(stck, p);
-            popPixel(h_stck, p, rank);
-            test += 1;
+            popPixel(h_stck, p);
         } else{
             ++cntr;
         }
     }
-    printf("Rank %d added %d pixels to stack after exchange()!\n", rank, test);
 }
 
 // Gather region bitmap from all ranks to rank 0, from local_region to region
@@ -200,28 +197,19 @@ void gather_region(unsigned char* src, unsigned char* dest, int* image_size,
 
 // Adding seeds in corners.
 void add_seeds(stack_t* stack, int* coords, int* dims, int orow, int ocol){
-    pixel_t seed;
-    int x = coords[1], y = coords[0],
-    max_x = dims[1]-1, max_y = dims[0]-1;
-    if (0 == x && 0 == y){
-        seed.x = 5; seed.y = 5;
-        push(stack, seed);
+    //element 0 is coloumns, aka "y", and vica versa with rows, x and element 1
+    int x_seeds[2] = {5, orow-5}, y_seeds[2] = {5, ocol-5},
+    x_coords[2] = {0, dims[1]-1}, y_coords[2] = {0, dims[0]-1};
+    for (int i = 0; i < 2; ++i){
+        for (int j = 0; j < 2; ++j){
+            if (x_coords[j] == coords[1] && y_coords[i] == coords[0]){
+                pixel_t seed;
+                seed.x = x_seeds[j];
+                seed.y = y_seeds[i];
+                push(stack, seed);
+            }
+        }
     }
-    if(0 == x && max_y == y){
-        seed.x = 5; seed.y = ocol - 5;
-        push(stack, seed);
-    }
-    if(max_x == x && 0 == y){
-        seed.x = orow - 5; seed.y = 5;
-        push(stack, seed);
-    }
-    if(max_x == x && max_y == y){
-        seed.x = orow - 5; seed.y = ocol - 5;
-        push(stack, seed);
-    }
-    /*seed.x = 256; seed.y = 170;
-    push(stack, seed);
-    printf("Inside call for seed: %d\n", inside(seed, orow, ocol));*/
 }
 
 // Region growing, parallell implementation
@@ -248,7 +236,7 @@ int grow_region(stack_t* stack, unsigned char* img, unsigned char* region, int o
                 continue;
             }
 
-            if(similar(img, pixel, candidate, orow)){
+            if(similar(img, pixel, candidate, orow, ocol)){
                 region[candidate.x + (candidate.y*orow)] = 1;
                 push(stack,candidate);
             }
@@ -389,26 +377,18 @@ int main(int argc, char** argv){
         push(halo_stack, p1); push(halo_stack, p2);
     }
 
-    //Check if all halo coordinates are inside or not. (At this point in development they are)
-    if (1 == rank){
-        int cntr = 0; pixel_t p;
-        for (int i = 0; i < halo_stack->size; ++i){
-            p = halo_stack->pixels[i];
-            if(!inside(p, orow, ocol)){
-                cntr += 1;
-            }
-        }
-        printf("This many pixels were out of bounds on rank %d: %d\n", rank, cntr);
-    }
+    MPI_Barrier(cart_comm);
+    printf("After stack preparation in main()\n");
+    MPI_Barrier(cart_comm);
 
     // Run while-loop to empty stack
     int filledStack = grow_region(stack, local_image, local_region, orow, ocol), recvbuf = 1;
     while(!MPI_Allreduce(&filledStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && (recvbuf != 0)){
         exchange(stack, halo_stack, local_region, irow, orow, bsize, north, south,
-            east, west, rank, border_col_t, cart_comm, status);
+            east, west, border_col_t, cart_comm, status);
         filledStack = grow_region(stack, local_image, local_region, orow, ocol);
     }
-    printf("After grow_region() in main()\n");
+    //printf("After grow_region() in main()\n");
 
     gather_region(local_region, region, image_size, icol, irow, orow, displs, rank,
         size, cart_comm, status);
