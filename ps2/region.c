@@ -44,8 +44,8 @@ pixel_t pop(stack_t* stack){
 // Check if two pixels are similar. The hardcoded threshold can be changed.
 // More advanced similarity checks could have been used.
 int similar(unsigned char* im, pixel_t p, pixel_t q, int row_stride){
-    int a = im[p.x +  (p.y * row_stride) + 1];
-    int b = im[q.x +  (q.y * row_stride) + 1];
+    int a = im[p.x +  (p.y * row_stride)];
+    int b = im[q.x +  (q.y * row_stride)];
     int diff = abs(a-b);
     return diff < 2;
 }
@@ -93,7 +93,7 @@ int pixelInStack(stack_t* stack, pixel_t p){
     return inStack;
 }
 
-void popPixel(stack_t* stack, pixel_t p){
+void popPixel(stack_t* stack, pixel_t p, int rank){
     int pos;
     if (pixelInStack(stack, p)){
         for (int i = 0; i < stack->size; ++i){
@@ -108,6 +108,9 @@ void popPixel(stack_t* stack, pixel_t p){
             stack->pixels[i] = stack->pixels[i+1];
         }
         stack->size -= 1;
+    }
+    if (2 == rank){
+        printf("Rank %d popped pixel x: %d y: %d\n", rank, p.x, p.y);
     }
 }
 
@@ -163,10 +166,11 @@ void exchange(stack_t* stck, stack_t* h_stck, unsigned char* img, int irow, int 
         pixel_t p = h_stck->pixels[cntr];
         if(img[p.x + (p.y*orow)]){
             push(stck, p);
-            popPixel(h_stck, p);
+            popPixel(h_stck, p, rank);
             test += 1;
+        } else{
+            ++cntr;
         }
-        ++cntr;
     }
     printf("Rank %d added %d pixels to stack after exchange()!\n", rank, test);
 }
@@ -202,16 +206,22 @@ void add_seeds(stack_t* stack, int* coords, int* dims, int orow, int ocol){
     if (0 == x && 0 == y){
         seed.x = 5; seed.y = 5;
         push(stack, seed);
-    } else if(0 == x && max_y == y){
+    }
+    if(0 == x && max_y == y){
         seed.x = 5; seed.y = ocol - 5;
         push(stack, seed);
-    } else if(max_x == x && 0 == y){
+    }
+    if(max_x == x && 0 == y){
         seed.x = orow - 5; seed.y = 5;
         push(stack, seed);
-    } else if(max_x == x && max_y == y){
+    }
+    if(max_x == x && max_y == y){
         seed.x = orow - 5; seed.y = ocol - 5;
         push(stack, seed);
     }
+    /*seed.x = 256; seed.y = 170;
+    push(stack, seed);
+    printf("Inside call for seed: %d\n", inside(seed, orow, ocol));*/
 }
 
 // Region growing, parallell implementation
@@ -394,7 +404,7 @@ int main(int argc, char** argv){
     // Run while-loop to empty stack
     int filledStack = grow_region(stack, local_image, local_region, orow, ocol), recvbuf = 1;
     while(!MPI_Allreduce(&filledStack, &recvbuf, 1, MPI_INT, MPI_SUM, cart_comm) && (recvbuf != 0)){
-        exchange(stack, halo_stack, local_image, irow, orow, bsize, north, south,
+        exchange(stack, halo_stack, local_region, irow, orow, bsize, north, south,
             east, west, rank, border_col_t, cart_comm, status);
         filledStack = grow_region(stack, local_image, local_region, orow, ocol);
     }
