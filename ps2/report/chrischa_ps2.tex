@@ -1,6 +1,6 @@
 %Problem Set 1 LaTeX report for TDT4200
 \documentclass[fontsize=11pt, paper=a4, titlepage]{article}
-\input{../../config} %config.tex file in same directory
+\input{../../config} %config.tex file in same directory for all reports
 
 \begin{document}
 
@@ -27,49 +27,114 @@
 \subsection{Problem 1, MPI}
 
 \begin{enumerate}
-\renewcommand{\theenumi}{\Alph{enumi})}
+\renewcommand{\theenumi}{\alph{enumi})}
 
-    \item What is the difference between blocking and non-blocking sends in MPI?
-Blocking sends in MPI (like MPI_Send() and MPI_Recv()), block the flow of the
-program until the corresponding rank reached the corresponding sent/received call
-in its own program flow.
+    \item Blocking sends in MPI (like MPI\_Send() and MPI\_Recv()), block the
+flow of the program until the corresponding rank reached the corresponding
+sent/received call in its own program flow.
 
 Non-blocking sends do not wait for the receiving rank to be ready with the
 receiving buffer. Nor do the receiving ranks wait to make sure that the data has
-been sent from the rank sending it.
+been sent from the rank sending it. Hence, the function MPI\_Wait() can be used
+to ensure that the rank does not continue its program flow with data not yet
+received/ready. Or Make sure of this in some other manner.
 
     \item What is the difference between synchronous and asynchronous sends in MPI?
+Synchronous sends require both parties to be ready and ``waiting'' for the send to be transmitted. Hence, a synchronous send can also be described as a blocking send.
+
+Asynchronous sends can generally be described as a non-blocking send, but
+depending on use of functionality like MPI\_wait() (or something likewise), it
+doesn't have to be non-blocking.
 
 \end{enumerate}
+
+In effect, non-blocking vs blocking, and asynchronous vs synchronous are in
+effect the same thing, though the implementation. The difference comes down to
+semantics more often than not.
 
 \subsection{Problem 2, Interconnects}
 
 \begin{enumerate}
-\renewcommand{\theenumi}{\Alph{enumi})}
+\renewcommand{\theenumi}{\alph{enumi})}
 
-    \item Draw a mesh, torus and hypercube with 16 nodes.
+    \item
+    \begin{itemize}
+        \item A picture of a mesh with 16 nodes:
+        \begin{figure}[H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{16_node_mesh.png}
+            \caption{16 node mesh}
+            \label{fig:mesh}
+        \end{figure}
 
-    \item Which of the interconnects in a) has the smallest and largest bisection width?
+        \item A picture of a torus with 16 nodes, albeit I was unable to find
+out if a torus of interconnected computing nodes needs to be connected along
+both dimensions, or just along the one like in the below picture.
+        \begin{figure}[H]
+            \centering
+            \includegraphics[width=0.4\linewidth]{16_node_torus_1d.png}
+            \caption{16 node torus}
+            \label{fig:torus}
+        \end{figure}
+
+        \item A picture of a hypercube with 16 nodes:
+        \begin{figure}[H]
+            \centering
+            \includegraphics[width=0.8\linewidth]{16_node_hypercube.png}
+            \caption{16 node hypercube}
+            \label{fig:hypercube}
+        \end{figure}
+    \end{itemize}
+
+
+    \item The biggest bisection width is the hypercube, which has a bisection
+width of 8, or the torus which also has a bisection width of 8. The smalles
+bisection width is the mesh, which has the bisection width of 4.
 
 \end{enumerate}
 
 \subsection{Problem 3, Amdahl and Gustafson}
+\begin{align*}
+    P_s &= \frac{P_{Size\thickspace of\thickspace the\thickspace trictly\thickspace serial\thickspace code\thickspace part\thickspace of\thickspace the\thickspace program}}{Total\thickspace size\thickspace of\thickspace the\thickspace program} \\
+    P_p &= \frac{P_{Size\thickspace of\thickspace the\thickspace infinitely\thickspace parallell\thickspace code\thickspace part\thickspace of\thickspace the\thickspace program}}{Total\thickspace size\thickspace of\thickspace the\thickspace program} \\
+    N &= Number\thickspace of\thickspace processes\thickspace program\thickspace is\thickspace run\thickspace on\thickspace in\thickspace parallell \\
+    S_{Amdahl} &= \frac{1}{s_a + \frac{1-s_a}{n}} \\
+    S_{Gustafson} &= N - \frac{P_s}{P_s + \frac{P_p}{N}}\cdot(N-1) = N - s_g\cdot (N-1)
+\end{align*}
+
+In this problem, the following values are given:
+\begin{align*}
+    P_s &= 0.4\thickspace seconds \\
+    P_p &= 0.6\thickspace seconds \\
+    N &= 10\thickspace processors
+\end{align*}
 
 \begin{enumerate}
-\renewcommand{\theenumi}{\Alph{enumi})}
+\renewcommand{\theenumi}{\alph{enumi})}
+    \item The speedup using Amdahl's law is:
+    \begin{align*}
+        S_a &= \frac{1}{0.4 + \frac{1-0.4}{10}} = \frac{1}{0.4+0.06} \\
+        S_a &= \frac{50}{23}\thickspace seconds
+    \end{align*}
 
-    \item
+    \item The speedup using Gustafson's law is:
+    \begin{align*}
+        S_g &= 10 - \frac{0.4}{0.4 + \frac{0.6}{10}}\cdot (10-1) = 10 - \frac{0.4}{0.46}\cdot 9 \\
+        S_a &= 10 - \frac{180}{23} = \frac{50}{23}\thickspace seconds
+    \end{align*}
 
-    \item
-
-    \item
+    \item $s_a$ is the fraction of execution time that has to be done in serial,
+while $s_g$ is the serial work done on $N$ processes. In essence, these two are
+the same. We get the same result since Amdahl focuses on the time it takes to
+execute the unparallellizable code, while Gustafson focuses on how much work can
+be done serially across all the $N$ processes/machines/cores.
 
 \end{enumerate}
 
 \subsection{Problem 4, Communication}
 
 \begin{enumerate}
-\renewcommand{\theenumi}{\Alph{enumi})}
+\renewcommand{\theenumi}{\alph{enumi})}
 
     \item
 
