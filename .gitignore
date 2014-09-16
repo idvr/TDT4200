@@ -26,7 +26,8 @@
 *~
 
 #Test executables
-*-test
+*test
+*cc.c
 
 # Sublime files
 *.sublime-*
@@ -39,3 +40,5 @@
 #Problem Set Files
 ps2/region
 ps2/out.bmp
+*.zip
+*.tar.gz
