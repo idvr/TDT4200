@@ -162,19 +162,29 @@ processes. AKA $m^2$ then becomes $m^2 +1$
     \item Time spent on an exchange when all processes can communicate full-duplex
 with no overhead at $r$ bytes/second with only one other process at a time, without any startup time per transmission
     \begin{align*}
-        &= \frac{4n}{m}\times \frac{b}{2r} = \frac{2nb}{mr}
+        &= \frac{4n}{m}\times \frac{b}{r} = \frac{4nb}{mr}
     \end{align*}
 
-
-    \item Total time for execution $T$
+    \item Total time for execution $T$:
     \begin{align*}
         T &= T_{comp} + T_{comm} \\
         T_{comp} &= t \frac{n^2}{m^2},\thickspace t\thickspace is\thickspace constant \\
-        T_{comm} &= \frac{(m^2 -1)\times \frac{n^2}{m^2}\times 2}{1}\times \frac{b}{r} +  \frac{2nb}{mr} = \frac{2b}{r}\times (n^2 - \frac{n^2}{m^2} + \frac{n}{m})
+        T_{comm} &= \frac{(m^2 -1)\times \frac{n^2}{m^2}\times 2}{1}\times \frac{b}{r} +  \frac{4nb}{mr} = \frac{2b}{r}\times (n^2 - \frac{n^2}{m^2} + \frac{2n}{m})
     \end{align*}
-    Since $\frac{2b}{r}$ is constant, this factor is henceforth referred to as $C$, hence
+    Since $\frac{b}{r}$ is constant, this factor is henceforth referred to as $C$, hence:
     \begin{align*}
-        T &= C \times (n^2 - \frac{n^2}{m^2} + \frac{n}{m})
+        T &= 2C \times (-\frac{n^2}{m^2} + \frac{2n}{m} + n^2) + t\frac{n^2}{m^2} \\
+        \frac{d}{dm}(T) &= \frac{2n(2C(n-m) - nt)}{m^3} \\
+    \end{align*}
+    Then, finding the optimum by putting $\frac{d}{dm}(T) = 0$:
+    \begin{align*}
+        0 &= \frac{2n(2C(n-m) - nt)}{m^3} = 2C(n-m) - nt \\
+        0 &= 2Cn -2Cm - nt = 2Cm - 2Cn + nt \\
+    \end{align*}
+    Finally, finding a function for $m$ by putting it on one side of the equation:
+    \begin{align*}
+        2Cm &= 2Cn - nt \\
+        m &= \frac{n(2C - t)}{2C} = \frac{n}{2C} - \frac{nt}{2C} \\
     \end{align*}
 
 \end{enumerate}
