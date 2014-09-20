@@ -39,14 +39,13 @@ many elements, or having to ``pack'' the data in a temporary contiguous buffer
 on the sending process, and then ``unpacking'' the data again from an an
 identical contiguous buffer in the receiving process.
 
-    \item
-        % \begin{figure}[H]
-        %     \centering
-        %     \includegraphics[width=0.4\linewidth]{16_node_mesh.png}
-        %     \caption{16 node mesh}
-        %     \label{fig:mesh}
-        % \end{figure}
-\todo[inline]{PICTURE}
+    \item See below picture for answer to this subproblem.
+        \begin{figure}[H]
+            \centering
+            \includegraphics[width=1.0\linewidth]{1b.jpg}
+            \caption{Data placement in arrays}
+            \label{fig:1b}
+        \end{figure}
 
 \end{enumerate}
 
@@ -114,7 +113,6 @@ at a minimum a $1000$ elements away from each other, and if assumption
 \textbf{2} holds, then there is absolutely no spatial locality.
 
     \end{enumerate}
-
 \end{enumerate}
 
 \subsection{Problem 4, Branching}
@@ -161,6 +159,19 @@ $pn(r(f-s) + s)$. When setting the new $T_{tot}$ to take longer time than just u
         \end{align*}
 
     \end{enumerate}
+\end{enumerate}
+
+\subsection{Problem 5, Optimization}
+\begin{enumerate}[a)]
+
+    \item If the table is sufficiently big so that a look-up in the table takes
+sufficient time (e.g. does not fit in cache), the code might get slowed down by this ``optimization''.
+
+However, if the table isn't too big (fits in cache), and say be possible to
+access like a hash table in $O(1)$ time, then that will be faster than a
+function that which is slow to compute the return value.
+
+    \item
 
 \end{enumerate}
 
