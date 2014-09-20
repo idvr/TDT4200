@@ -167,11 +167,58 @@ $pn(r(f-s) + s)$. When setting the new $T_{tot}$ to take longer time than just u
     \item If the table is sufficiently big so that a look-up in the table takes
 sufficient time (e.g. does not fit in cache), the code might get slowed down by this ``optimization''.
 
-However, if the table isn't too big (fits in cache), and say be possible to
+However, if the table isn't too big (fits in cache), and say is possible to
 access like a hash table in $O(1)$ time, then that will be faster than a
 function that which is slow to compute the return value.
 
-    \item
+    \item Assumption \textbf{1}: \textit{f()} returns ints, of $32$ bits length.
+
+Assumption \textbf{2}: Time it takes to index table is constant/inconsequential,
+no matter the size.
+
+Assumption \textbf{3}: Hit rate of cache in this problem,
+given table size, is simply $\frac{cache\thickspace size}{table\thickspace size}$.
+
+Given assumptions \textbf{1}, \textbf{2}, and \textbf{3}, this question asks how
+big the cache must be, so that the cache misses are few enough, such that it
+will be faster to replace \textit{f()} with a table.
+
+Total table size (denoted as $S$) has to be equal to $128*1024*32 = 4\thickspace
+194\thickspace 304$ to fit all the potentially different return values.
+
+Cache size will be denoted as $X$. The time the code requires to execute with
+\textit{f()} will be denoted as $T_f$, and the time the code requires to execute
+with the table will be denoted as $T_t$.
+
+    \begin{align*}
+        T_{f()} = T_f &= 128\times 4\times 1024\times 5h
+        = 2\thickspace 621\thickspace 440h \\
+        T_{table} = T_t &= hS\times(\frac{X}{S} + (1-\frac{X}{S})10)\\
+        T_t &= h(10S- 9X)
+    \end{align*}
+
+Hence, the equation becomes:
+
+    \begin{align*}
+        T_t &< T_f \\
+        h(10S-9X) &< 2\thickspace 621\thickspace 440h \\
+        10S - 9X &< 2\thickspace 621\thickspace 440 \\
+        10\times 4\thickspace 194\thickspace 304 -9X &< 2\thickspace 621\thickspace 440 \\
+        9X &> 41\thickspace 943\thickspace 040 - 2\thickspace 621\thickspace 440 \\
+        9X &> 41\thickspace 681\thickspace 600 \\
+        X &> \frac{41\thickspace 681\thickspace 600}{9}
+    \end{align*}
+
+With a value for $X$ in bits, we can then divide this by $64\times 8$ to find out how many cache lines $c$ are necessary to have a sufficiently large cache:
+
+    \begin{align*}
+        c &= \frac{\frac{41\thickspace 681\thickspace 600}{9}}{64\times 8} \\
+        c &= \frac{651 275}{72} \\
+        c &\approx 9045.4861
+    \end{align*}
+
+The cache must be a minumum of $4096$ cache lines big, where each cache line is
+$64$ bytes long. That makes this a cache of $2048$Kbits, or $2$Mb.
 
 \end{enumerate}
 
