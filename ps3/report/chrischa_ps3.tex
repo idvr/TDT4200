@@ -1,0 +1,169 @@
+%Problem Set 1 LaTeX report for TDT4200
+\documentclass[fontsize=11pt, paper=a4, titlepage]{article}
+\input{../../config} %config.tex file in same directory for all reports
+
+\begin{document}
+
+\begin{center}
+
+{\huge Problem Set 3}\\[0.5cm]
+
+\textsc{\LARGE TDT4200 -}\\[0.5cm]
+\textsc{\large Parallel Computations}\\[1.0cm]
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c}
+        \textsc{Christian Chavez}
+    \end{tabular}
+\end{table}
+
+\end{center}
+\vfill
+\hfill \large{\today}
+\clearpage
+
+\section{Theory}
+\subsection{Problem 1, MPI derived types}
+
+\begin{enumerate}[a)]
+
+    \item MPI communication mechanisms at its basic level can be used to send or
+receive a sequence of identical elements that are contiguous in memory. However,
+you would often want to send datat that is either not homogenous, or not
+contiguous (like the subdomains of the previous coding assignment) in memory.
+
+Derived datatypes in MPI are used to send such types of data. This alleviates
+the option of having the overhead of sending or receiving a message transmitting
+many elements, or having to ``pack'' the data in a temporary contiguous buffer
+on the sending process, and then ``unpacking'' the data again from an an
+identical contiguous buffer in the receiving process.
+
+    \item
+        % \begin{figure}[H]
+        %     \centering
+        %     \includegraphics[width=0.4\linewidth]{16_node_mesh.png}
+        %     \caption{16 node mesh}
+        %     \label{fig:mesh}
+        % \end{figure}
+\todo[inline]{PICTURE}
+
+\end{enumerate}
+
+\subsection{Problem 2, Memory and Caching}
+
+\begin{enumerate}[a)]
+
+    \item The three types of cache misses are \textit{Compulsory},
+\textit{Capacity}, and \textit{Conflict}.
+    \begin{enumerate}[I)]
+
+        \item \textbf{Compulsory} cache misses happens when the data is not
+already stored in the cache, and needs to be retrieved from a lower level memory
+of the memory hierarchy (like RAM).
+
+        \item \textbf{Capacity} cache misses happen when the cache is full, and
+the data is not in cache. Meaning that due to the finite size of cache,
+something else needs to be evicted to make space for the new data.
+
+        \item \textbf{Conflict} cache misses happen when the data requested at
+some earlier point was present in cache, but was then later (but before the new
+request) evicted. So in other words, a cache miss that could have been avoided.
+
+    \end{enumerate}
+
+    \item Temporal locality refers to references to the same part of memory in
+close temporal proximity (near future). That instead of referring to variable
+\textit{X} 7 times equidistantly spread throughout the programflow, you refer to
+it 7 times in a row. (Simplified example.)
+
+The concept that likelihood of referencing a resource is higher if a resource
+near it was just referenced.
+
+Spatial locality is the same thing, except here it's about which memory space
+you're addressing, not when. So if one part of memory is referenced, spatial
+locality is when memory near this reference has a higher chance of also being
+accessed.
+
+    \item Assumption \textbf{1}: That the cache is not big enough to fit all
+three arrays in cache, since three identical int arrays of size $100 000$ each,
+with an int being $16$ bits long, would imply a cache size of $\approx 9.16$
+Mbit cache. Hence, spatial locality will never be possible for all full three
+arrays at the same time.
+
+Assumption \textbf{2}: The cache blocks are $64$ bytes in size, meaning that
+when a subset of the above arrays are loaded in, at most $16$ values of that
+subsection of the array is loaded into the cache.
+
+    \begin{enumerate}[I)]
+
+        \item Since this for-loop jumps to every thousandth indice, there is no
+spatial locality at play, if assumption \textbf{2} holds. $(16 \ll 1000)$.
+Neither is there temporal locality, since the instructions the for-loop repeats
+change the data locations they're repeated on for every iteration.
+
+        \item This pattern exhibits spatial locality since it's accessing each
+indice in turn, not jumping over indices too big for the suggested size of a
+cache block. There is, however no spatial locality, since the same memory
+address is only referenced once.
+
+        \item This pattern exhibits temporal locality, but not spatial locality.
+Temporal because of the outer for-loop, which makes the inner for-loop re-
+reference the memory addresses a $100$ times each. But since each reference is
+at a minimum a $1000$ elements away from each other, and if assumption
+\textbf{2} holds, then there is absolutely no spatial locality.
+
+    \end{enumerate}
+
+\end{enumerate}
+
+\subsection{Problem 4, Branching}
+\begin{enumerate}[a)]
+
+    \item \textit{Branch prediction} is when there is made a prediction
+depending on an if-construct as to which data is to be loaded into cache next.
+
+If the prediction made is correct, then there can be performance improvement due
+to the data already being in cache when referenced the first time, due to the
+data being loaded at the preceding if-clause.
+
+    \item Total time for code execution $T_{tot}$:
+    \begin{align*}
+        T_{tot} &= pn(rf + (1-r)s) = pn(r(f-s) + s)
+    \end{align*}
+
+    \begin{enumerate}[I)]
+
+        \item By setting the time cost of running all iterations through the
+slow function $sn$ to be less than the total run-cost $T_{tot}$, we can find the value $r$ has to be to make this a beneficial trade:
+
+        \begin{align*}
+            sn &< pn(r(f-s) + s) \\
+            \frac{s}{p} &< r(f-s) + s \\
+            \frac{s}{p} - s &< r(f-s) \\
+            \frac{\frac{s}{p} - s}{f-s} &< r \\
+            r &> \frac{(1-p)s}{p(f-s)}
+        \end{align*}
+
+    $r$ has to be bigger than $\frac{(1-p)s}{p(f-s)}$ for the code to be faster
+by running all the iterations through the slow function, instead of keeping the
+if-clause.
+
+    \item If the branch predictor always mispredicts, $T_{tot}$ then becomes
+$pn(r(f-s) + s)$. When setting the new $T_{tot}$ to take longer time than just using the slow function, $r$ has to be:
+
+        \begin{align*}
+            sn &< bpn(r(f-s) + s) \\
+            \frac{s}{bp} &< r(f-s) + s \\
+            \frac{s}{bp} - s &< r(f-s) \\
+            \frac{\frac{s}{bp} - s}{f-s} &< r \\
+            r &> \frac{s(1-bp)}{bp(f-s)}
+        \end{align*}
+
+    \end{enumerate}
+
+\end{enumerate}
+
+\vfill
+\hfill \large{\today}
+\end{document}
