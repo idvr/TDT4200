@@ -7,7 +7,22 @@
 \usepackage{todonotes}	%For \todo
 \usepackage{tabularx}	%for tablecontents wrapping inside cell, instead of cell breaking page width.
 \usepackage{verbatim}
+\usepackage{enumerate}	%For getting different types of lists like a) II) and so forth.
 \usepackage[margin=2cm]{geometry}
+
+\usepackage{lastpage}	%For the command \pageref{lastpage}
+\usepackage{fancyhdr}
+\rfoot{\thepage\ / \pageref{LastPage}}
+
+\usepackage{tikz}
+\usepackage{colortbl}
+\usetikzlibrary{calc}
+\newcolumntype{W}{!{\smash{\vrule
+\@width 4\arrayrulewidth
+\@height\dimexpr\ht\@arstrutbox+2pt\relax
+\@depth\dimexpr\dp\@arstrutbox+2pt\relax}}}
+\makeatother
+\definecolor{gray}{rgb}{.7,.7,.7}
 
 \newcommand*\Laplace{\mathop{}\!\mathbin\bigtriangleup}
 
