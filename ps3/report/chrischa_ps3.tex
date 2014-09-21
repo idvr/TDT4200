@@ -6,7 +6,7 @@
 
 \begin{center}
 
-{\huge Problem Set 3}\\[0.5cm]
+{\huge Problem Set 3, Theory}\\[0.5cm]
 
 \textsc{\LARGE TDT4200 -}\\[0.5cm]
 \textsc{\large Parallel Computations}\\[1.0cm]
@@ -23,8 +23,7 @@
 \hfill \large{\today}
 \clearpage
 
-\section{Theory}
-\subsection{Problem 1, MPI derived types}
+\section{Problem 1, MPI derived types}
 
 \begin{enumerate}[a)]
 
@@ -46,10 +45,14 @@ identical contiguous buffer in the receiving process.
             \caption{Data placement in arrays}
             \label{fig:1b}
         \end{figure}
+    NB: The transferred elements (filled boxes) are received in the same order
+as they are sent. The first one in the send array is also the first one in
+the receive array, and so on.
+
 
 \end{enumerate}
 
-\subsection{Problem 2, Memory and Caching}
+\section{Problem 2, Memory and Caching}
 
 \begin{enumerate}[a)]
 
@@ -103,7 +106,7 @@ change the data locations they're repeated on for every iteration.
 
         \item This pattern exhibits spatial locality since it's accessing each
 indice in turn, not jumping over indices too big for the suggested size of a
-cache block. There is, however no spatial locality, since the same memory
+cache block. There is, however no temporal locality, since the same memory
 address is only referenced once.
 
         \item This pattern exhibits temporal locality, but not spatial locality.
@@ -115,11 +118,11 @@ at a minimum a $1000$ elements away from each other, and if assumption
     \end{enumerate}
 \end{enumerate}
 
-\subsection{Problem 4, Branching}
+\section{Problem 4, Branching}
 \begin{enumerate}[a)]
 
-    \item \textit{Branch prediction} is when there is made a prediction
-depending on an if-construct as to which data is to be loaded into cache next.
+    \item \textit{Branch prediction} is when a prediction is made regarding
+which  option an if-clause will choose, so that the data of the (hopefully correctly chosen if-clause) can be already loaded into cache when it's needed.
 
 If the prediction made is correct, then there can be performance improvement due
 to the data already being in cache when referenced the first time, due to the
@@ -127,41 +130,47 @@ data being loaded at the preceding if-clause.
 
     \item Total time for code execution $T_{tot}$:
     \begin{align*}
-        T_{tot} &= pn(rf + (1-r)s) = pn(r(f-s) + s)
+        T_{tot} &= n((p+f)r + (1-r)(p+s))
     \end{align*}
 
     \begin{enumerate}[I)]
 
         \item By setting the time cost of running all iterations through the
-slow function $sn$ to be less than the total run-cost $T_{tot}$, we can find the value $r$ has to be to make this a beneficial trade:
+slow function $(p+s)n$ to be less than the total run-cost $T_{tot}$, we can find
+the value $r$ has to be to make this a beneficial trade. But since the branch
+predictor always assumes the if-clause to return false, we need to add the
+branch prediction cost $b$ for the fast alternative.
 
         \begin{align*}
-            sn &< pn(r(f-s) + s) \\
-            \frac{s}{p} &< r(f-s) + s \\
-            \frac{s}{p} - s &< r(f-s) \\
-            \frac{\frac{s}{p} - s}{f-s} &< r \\
-            r &> \frac{(1-p)s}{p(f-s)}
+            sn &< n((p+b+f)r + (1-r)(p+s)) \\
+            s &< (p+b+f)r + (p+s) - r(p+s) \\
+            -p &< (p+b+f)r - r(p+s) \\
+            p &> r((p+s) - (p+b+f)) \\
+            p &> r(s-b-f) \\
+            \frac{p}{(s-b-f)} &< r
         \end{align*}
 
-    $r$ has to be bigger than $\frac{(1-p)s}{p(f-s)}$ for the code to be faster
-by running all the iterations through the slow function, instead of keeping the
-if-clause.
+$r$ has to be bigger than $\frac{p}{s-b-f}$ for the code to be faster by
+running all the iterations through the slow function, instead of keeping the if-
+clause. This relies on $s \ge p+b+f$, otherwise $r$ will not be positive with
+a value between $0$ and $1$.
 
     \item If the branch predictor always mispredicts, $T_{tot}$ then becomes
-$pn(r(f-s) + s)$. When setting the new $T_{tot}$ to take longer time than just using the slow function, $r$ has to be:
+$T_{tot} = n(r(f+b+p) + (1-r)(s+b+p))$. When setting the new $T_{tot}$ to take
+longer time than just using the slow function, $r$ has to be:
 
         \begin{align*}
-            sn &< bpn(r(f-s) + s) \\
-            \frac{s}{bp} &< r(f-s) + s \\
-            \frac{s}{bp} - s &< r(f-s) \\
-            \frac{\frac{s}{bp} - s}{f-s} &< r \\
-            r &> \frac{s(1-bp)}{bp(f-s)}
+            sn &< n(r(f+b+p) + (1-r)(s+b+p)) \\
+            s &< r(f+b+p) + (s+b+p) -r(s+b+p) \\
+            s - (s+b+p) &< r(f-s) \\
+            (b+p) &< r(s-f) \\
+            \frac{b+p}{s-f} &< r
         \end{align*}
 
     \end{enumerate}
 \end{enumerate}
 
-\subsection{Problem 5, Optimization}
+\section{Problem 5, Optimization}
 \begin{enumerate}[a)]
 
     \item If the table is sufficiently big so that a look-up in the table takes
@@ -183,8 +192,10 @@ Given assumptions \textbf{1}, \textbf{2}, and \textbf{3}, this question asks how
 big the cache must be, so that the cache misses are few enough, such that it
 will be faster to replace \textit{f()} with a table.
 
-Total table size (denoted as $S$) has to be equal to $128*1024*32 = 4\thickspace
-194\thickspace 304$ to fit all the potentially different return values.
+Since \textit{f()} in the example only receives $128\times 128 = 16\thickspace
+384$ different unique values, the table size does not have to be bigger than
+this. Total table size (denoted as $S$) then has to be equal to $128*128*32 =
+524\thickspace 288$ to fit all the (potentially) different return values.
 
 Cache size will be denoted as $X$. The time the code requires to execute with
 \textit{f()} will be denoted as $T_f$, and the time the code requires to execute
@@ -203,22 +214,24 @@ Hence, the equation becomes:
         T_t &< T_f \\
         h(10S-9X) &< 2\thickspace 621\thickspace 440h \\
         10S - 9X &< 2\thickspace 621\thickspace 440 \\
-        10\times 4\thickspace 194\thickspace 304 -9X &< 2\thickspace 621\thickspace 440 \\
-        9X &> 41\thickspace 943\thickspace 040 - 2\thickspace 621\thickspace 440 \\
-        9X &> 41\thickspace 681\thickspace 600 \\
-        X &> \frac{41\thickspace 681\thickspace 600}{9}
+        10\times 524\thickspace 288 - 9X &< 2\thickspace 621\thickspace 440 \\
+        9X &< 10\times 524\thickspace 288 - 2\thickspace 621\thickspace 440 \\
+        9X &> 2\thickspace 621\thickspace 440 \\
+        X &> \frac{41\thickspace 681\thickspace 600}{9} = \frac{2.5\times 1024^2}{9}
     \end{align*}
 
-With a value for $X$ in bits, we can then divide this by $64\times 8$ to find out how many cache lines $c$ are necessary to have a sufficiently large cache:
+With a value for $X$ in bits, we can then divide this by $64\times 8 = 512$ to
+find out how many cache lines $c$ are necessary to have a sufficiently large
+cache:
 
     \begin{align*}
-        c &= \frac{\frac{41\thickspace 681\thickspace 600}{9}}{64\times 8} \\
-        c &= \frac{651 275}{72} \\
-        c &\approx 9045.4861
+        c &= \frac{\frac{2.5\times 1024^2}{9}}{512} \\
+        c &= \frac{5120}{9} \\
+        c &\approx 568.89
     \end{align*}
 
-The cache must be a minumum of $4096$ cache lines big, where each cache line is
-$64$ bytes long. That makes this a cache of $2048$Kbits, or $2$Mb.
+The cache must be a minumum of $569$ cache lines big, where each cache line is
+$64$ bytes long. That makes this a cache of $291\thickspace 328$bits.
 
 \end{enumerate}
 
