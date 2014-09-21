@@ -192,10 +192,11 @@ Given assumptions \textbf{1}, \textbf{2}, and \textbf{3}, this question asks how
 big the cache must be, so that the cache misses are few enough, such that it
 will be faster to replace \textit{f()} with a table.
 
-Since \textit{f()} in the example only receives $128\times 128 = 16\thickspace
-384$ different unique values, the table size does not have to be bigger than
-this. Total table size (denoted as $S$) then has to be equal to $128*128*32 =
-524\thickspace 288$ to fit all the (potentially) different return values.
+Since \textit{f()} in the example only receives values between $0$ and
+$(127\times 128) + 1024 = 17\thickspace 280$, the table size does not have to
+fit more ints than this. Total table size (denoted as $S$) then has to be equal
+or greater than $17\thickspace 280*32 = 552\thickspace 960$ to fit all the
+(potentially) different return values.
 
 Cache size will be denoted as $X$. The time the code requires to execute with
 \textit{f()} will be denoted as $T_f$, and the time the code requires to execute
@@ -214,10 +215,10 @@ Hence, the equation becomes:
         T_t &< T_f \\
         h(10S-9X) &< 2\thickspace 621\thickspace 440h \\
         10S - 9X &< 2\thickspace 621\thickspace 440 \\
-        10\times 524\thickspace 288 - 9X &< 2\thickspace 621\thickspace 440 \\
-        9X &< 10\times 524\thickspace 288 - 2\thickspace 621\thickspace 440 \\
-        9X &> 2\thickspace 621\thickspace 440 \\
-        X &> \frac{41\thickspace 681\thickspace 600}{9} = \frac{2.5\times 1024^2}{9}
+        10\times 552\thickspace 960 - 9X &< 2\thickspace 621\thickspace 440 \\
+        9X &< 10\times 552\thickspace 960 - 2\thickspace 621\thickspace 440 \\
+        9X &> 2\thickspace 908\thickspace 160 \\
+        X &> \frac{2\thickspace 908\thickspace 160}{9}
     \end{align*}
 
 With a value for $X$ in bits, we can then divide this by $64\times 8 = 512$ to
@@ -225,13 +226,14 @@ find out how many cache lines $c$ are necessary to have a sufficiently large
 cache:
 
     \begin{align*}
-        c &= \frac{\frac{2.5\times 1024^2}{9}}{512} \\
-        c &= \frac{5120}{9} \\
-        c &\approx 568.89
+        c &= \frac{\frac{2\thickspace 908\thickspace 160}{9}}{512} \\
+        c &= \frac{5680}{9} \approx 631.10
     \end{align*}
 
-The cache must be a minumum of $569$ cache lines big, where each cache line is
-$64$ bytes long. That makes this a cache of $291\thickspace 328$bits.
+The cache must be a minumum of $632$ cache lines big, where each cache line is
+$64$ bytes long. This results in a minimum of $323\thickspace 584$ bits
+necessary cache size for replacing \textit{f()} with a table to be an
+improvement.
 
 \end{enumerate}
 
