@@ -16,8 +16,12 @@ typedef struct{
 typedef struct{
 } s_matrix_t;
 
+typedef s_matrix_t* Matrix;
+typedef csr_matrix_t* CSRMatrix;
+
 int diag_count(int dim, int n){
-    return n*dim - ((n*(n+1))/2);
+    return n*dim -
+           ((n*(n+1))/2);
 }
 
 void print_raw_csr_matrix(csr_matrix_t* m){
@@ -40,9 +44,7 @@ void print_raw_csr_matrix(csr_matrix_t* m){
 #define KNRM  "\x1B[0m"
 #define KRED  "\x1B[31m"
 void print_formated_csr_matrix(csr_matrix_t* m){
-
     for(int i = 0; i < m->n_row_ptr-1; i++){
-        
         int col = m->row_ptr[i];
         for(int j = 0; j < m->n_row_ptr-1; j++){
             if(j == m->col_ind[col] && col < m->row_ptr[i+1]){
@@ -68,9 +70,9 @@ csr_matrix_t* create_csr_matrix(int n_rows, int n_cols, int a, int b, int c, int
     matrix->n_row_ptr = n_rows+1;
 
     int ah = a/2;
-    int size = diag_count(n_rows,ah);
-    size += (diag_count(n_rows,ah+b+c) - diag_count(n_rows,ah+b));
-    size += (diag_count(n_rows,ah+b+c+d+e) - diag_count(n_rows,ah+b+c+d));
+    int size = diag_count(n_rows ,ah);
+    size += (diag_count(n_rows ,ah+b+c) - diag_count(n_rows ,ah+b));
+    size += (diag_count(n_rows ,ah+b+c+d+e) - diag_count(n_rows ,ah+b+c+d));
     size = size*2 + n_rows;
 
     matrix->col_ind = (int*)malloc(sizeof(int)*size);
@@ -108,7 +110,7 @@ csr_matrix_t* create_csr_matrix(int n_rows, int n_cols, int a, int b, int c, int
         for(int j = fmax(0, limits[2]); j < fmax(0, limits[3]); j++)
             matrix->col_ind[index++] = j;
 
-        for(int j = fmax(0,limits[4]); j < fmin(limits[5], n_cols); j++)
+        for(int j = fmax(0 ,limits[4]); j < fmin(limits[5], n_cols); j++)
             matrix->col_ind[index++] = j;
 
         for(int j = fmin(n_cols, limits[6]); j < fmin(n_cols, limits[7]); j++)
@@ -120,10 +122,9 @@ csr_matrix_t* create_csr_matrix(int n_rows, int n_cols, int a, int b, int c, int
         row_width = index - row_width;
         matrix->row_ptr[index2+1] = matrix->row_ptr[index2] + row_width;
         index2++;
-        
+
         for(int j = 0; j < row_width; j++)
             matrix->values[index3++] = (float)rand()/RAND_MAX;
-        
 
         for(int j = 0; j < 10; j++)
             limits[j]++;
@@ -156,7 +157,6 @@ void print_time(struct timeval start, struct timeval end){
 
 void multiply_naive(csr_matrix_t* m, float* v, float* r){
     for(int i = 0; i < m->n_row_ptr-1; i++){
-        
         for(int j = m->row_ptr[i]; j < m->row_ptr[i+1]; j++){
             r[i] += v[m->col_ind[j]] * m->values[j];
         }
@@ -176,25 +176,26 @@ void compare(float* a, float* b, int n){
     printf("%d more errors...\n", n_errors - 10);
 }
 
-
 s_matrix_t* create_s_matrix(int dim, int a, int b, int c, int d, int e){
-    return NULL;
+    return
+        NULL;
 }
 
 s_matrix_t* convert_to_s_matrix(csr_matrix_t* csr){
-    return NULL;
+    return
+        NULL;
 }
 
-void multiply(s_matrix_t* m, float* v, float* r){
-}
+void multiply(Matrix m, float* v, float* r){
 
+}
 
 int main(int argc, char** argv){
-    
     if(argc != 7){
         printf("useage %s dim a b c d e\n", argv[0]);
         exit(-1);
     }
+
     int dim = atoi(argv[1]);
     int a = atoi(argv[2]);
     int b = atoi(argv[3]);
@@ -202,28 +203,29 @@ int main(int argc, char** argv){
     int d = atoi(argv[5]);
     int e = atoi(argv[6]);
 
-    csr_matrix_t* m = create_csr_matrix(dim,dim,a,b,c,d,e);
-        
+    csr_matrix_t* m = create_csr_matrix(dim ,dim ,a ,b ,c ,d ,e);
+    print_formated_csr_matrix(m);
+
     float* v = create_vector(dim);
     float* r1 = (float*)calloc(dim, sizeof(float));
     float* r2 = (float*)calloc(dim, sizeof(float));
-    
+
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    multiply_naive(m,v,r1);
+    multiply_naive(m ,v ,r1);
     gettimeofday(&end, NULL);
-    
+
     print_time(start, end);
-    
+
     s_matrix_t* s = create_s_matrix(dim, a, b, c, d, e);
     //s_matrix_t* s = convert_to_s_matrix(m);
-    
+
     gettimeofday(&start, NULL);
-    multiply(s,v,r2);
+    multiply(s ,v ,r2);
     gettimeofday(&end, NULL);
-    
+
     print_time(start, end);
-    
-    compare(r1,r2,dim);
+
+    compare(r1 ,r2 ,dim);
 }

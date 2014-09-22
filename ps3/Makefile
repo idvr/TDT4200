@@ -1,8 +1,13 @@
-run : spmv
+all: spmv
+
+clustis: spmv
 	qrsh -cwd ./spmv 100000 401 200 100 200 10
 
-spmv : spmv.c
-	gcc -Wall -std=c99 -O3 -msse3 spmv.c -o spmv -lm
-	
-clean :
-	rm spmv
+run: spmv
+	./spmv 20 2 2 2 2 1
+
+spmv: spmv.c
+	gcc -Wall -std=c99 -O3 -msse3 spmv.c -o spmv -lm -Wall -Wextra -pedantic -g
+
+clean:
+	rm spmv -f
