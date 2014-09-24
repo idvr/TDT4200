@@ -4,7 +4,7 @@ clustis: spmv
 	qrsh -cwd ./spmv 100000 401 200 100 200 10
 
 run: spmv
-	./spmv 20 5 2 3 2 2
+	./spmv 10 3 1 2 1 2
 
 spmv: spmv.c
 	gcc -Wall -std=c99 -O3 -msse3 spmv.c -o spmv -lm -Wall -Wextra -pedantic -g

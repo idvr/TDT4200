@@ -14,10 +14,10 @@ typedef struct{
 } csr_matrix_t;
 
 typedef struct{
-    int amnt;       //Amount of diagonals
-    int* offset;    //Offsets of diagonals in the array "values"
-    int* diag_id;   //Position of diagonal line in full matrix
     float* values;  //The actual non-zero values
+    int* offset;    //Offsets of diagonals in the array "values"
+    int amnt;       //Amount of diagonals
+    int* diag_id;   //Position of diagonal line in full matrix
 } s_matrix_t;
 
 typedef s_matrix_t* DiagMatrix;
@@ -233,12 +233,32 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
 }
 
 DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
-    return
-        NULL;
+    int diags = mat->amnt;
+    mat->values[0] = csr->values[0];
+    for (int i = 0; i < csr->n_row_ptr; ++i){
+
+    }
+
+    return mat;
 }
 
 void multiply(DiagMatrix m, float* v, float* r){
-
+    int start, end, row_offset, col_offset;
+    for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
+        row_offset = 0;
+        col_offset = 0;
+        if (0 < m->diag_id[i]){//If diag starts with values on row == 0, displace r
+            col_offset = m->offset[1]+1+m->diag_id[i];
+        }
+        if (0 > m->diag_id[i]) {//If diag starts with values on a different row than row 0, displace v
+            row_offset = m->offset[1]+1+m->diag_id[i];
+        }
+        end = m->offset[i+1];
+        start = m->offset[i];
+        for (int j = start; j < end; ++j){
+            r[j-start+row_offset] += v[j-start+col_offset]*m->values[j];
+        }
+    }
 }
 
 int main(int argc, char** argv){
