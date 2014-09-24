@@ -6,8 +6,8 @@
 #include <sys/time.h>
 
 //For use in multiply()
-#define min(a, b) (a < b) ? a : b
-#define max(a, b) (a > b) ? a : b
+#define min(a, b) (((a) < (b)) ? (a) : (b))
+#define max(a, b) (((a) > (b)) ? (a) : (b))
 
 typedef struct{
     int* row_ptr;
@@ -161,7 +161,7 @@ void print_vector(float* v, int n, int orientation){
 void print_time(struct timeval start, struct timeval end){
     long int ms = ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
     double s = ms/1e6;
-    printf("Time : %f s\n", s);
+    printf("Time (ms): %f s\n", s);
 }
 
 void multiply_naive(csr_matrix_t* m, float* v, float* r){
