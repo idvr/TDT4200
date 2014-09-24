@@ -6,8 +6,8 @@
 #include <sys/time.h>
 
 //For use in multiply()
-#define min(a, b) (((a) < (b)) ? (a) : (b))
-#define max(a, b) (((a) > (b)) ? (a) : (b))
+int min(int a, int b){return a<b ?a:b;}
+int max(int a, int b){return a>b ?a:b;}
 
 typedef struct{
     int* row_ptr;
@@ -290,7 +290,7 @@ int main(int argc, char** argv){
 
     print_time(start, end);
 
-    printf("Entering create_s_matrix\n");
+    //printf("Entering create_s_matrix\n");
     DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
     printf("Entering convert_to_s_matrix\n");
     convert_to_s_matrix(s, m);
