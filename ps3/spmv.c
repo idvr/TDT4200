@@ -14,9 +14,13 @@ typedef struct{
 } csr_matrix_t;
 
 typedef struct{
+    int* diag_ptr;      //Offsets of diagonals in the array "values"
+    int nrOfDiags;      //Amount of diagonals
+    float* values;      //The actual non-zero values
+    int* diag_index;    //Position of diagonal line in full matrix
 } s_matrix_t;
 
-typedef s_matrix_t* Matrix;
+typedef s_matrix_t* DiagMatrix;
 typedef csr_matrix_t* CSRMatrix;
 
 int diag_count(int dim, int n){
@@ -70,9 +74,9 @@ csr_matrix_t* create_csr_matrix(int n_rows, int n_cols, int a, int b, int c, int
     matrix->n_row_ptr = n_rows+1;
 
     int ah = a/2;
-    int size = diag_count(n_rows ,ah);
-    size += (diag_count(n_rows ,ah+b+c) - diag_count(n_rows ,ah+b));
-    size += (diag_count(n_rows ,ah+b+c+d+e) - diag_count(n_rows ,ah+b+c+d));
+    int size = diag_count(n_rows, ah);
+    size += (diag_count(n_rows, ah+b+c) - diag_count(n_rows, ah+b));
+    size += (diag_count(n_rows, ah+b+c+d+e) - diag_count(n_rows, ah+b+c+d));
     size = size*2 + n_rows;
 
     matrix->col_ind = (int*)malloc(sizeof(int)*size);
@@ -110,7 +114,7 @@ csr_matrix_t* create_csr_matrix(int n_rows, int n_cols, int a, int b, int c, int
         for(int j = fmax(0, limits[2]); j < fmax(0, limits[3]); j++)
             matrix->col_ind[index++] = j;
 
-        for(int j = fmax(0 ,limits[4]); j < fmin(limits[5], n_cols); j++)
+        for(int j = fmax(0, limits[4]); j < fmin(limits[5], n_cols); j++)
             matrix->col_ind[index++] = j;
 
         for(int j = fmin(n_cols, limits[6]); j < fmin(n_cols, limits[7]); j++)
@@ -145,6 +149,7 @@ void print_vector(float* v, int n, int orientation){
     for(int i = 0; i < n; i++){
         printf("%f%s", v[i], orientation ? " " : "\n");
     }
+
     if(orientation)
         printf("\n");
 }
@@ -173,20 +178,46 @@ void compare(float* a, float* b, int n){
             }
         }
     }
-    printf("%d more errors...\n", n_errors - 10);
+    if (10 <= n_errors){
+        printf("%d more errors...\n", n_errors - 10);
+    }
 }
 
-s_matrix_t* create_s_matrix(int dim, int a, int b, int c, int d, int e){
+DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
+    DiagMatrix result = (DiagMatrix) malloc(sizeof(s_matrix_t));
+    result->nrOfDiags = a+d+e;
+    result->diag_index = (int*) malloc(sizeof(int)*result->nrOfDiags);
+    result->diag_ptr = (int*) malloc(sizeof(int)*(result->nrOfDiags+1));
+
+    //UNFINISHED
+
+    //Need to calculate positin in matrix for each diagonal line
+    for (int i = 0; i < result->nrOfDiags; ++i){
+        result->diag_index[i] = 0 /*something*/;
+    }
+
+    //Need to calculate length of each diagonal line with values
+    int cntr = 0; result->diag_ptr[0] = 0;
+    for (int i = 1; i < result->nrOfDiags; ++i){
+        result->diag_ptr[i] = 0 /*something*/;
+        cntr += result->diag_ptr[i];
+    }
+    result->diag_ptr[result->nrOfDiags+1] = cntr;//Total size of values array.
+
+
+    return result;
+}
+
+DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
     return
         NULL;
 }
 
-s_matrix_t* convert_to_s_matrix(csr_matrix_t* csr){
-    return
-        NULL;
+void multiplyDiags(DiagMatrix m, float* v, float* r){
+
 }
 
-void multiply(Matrix m, float* v, float* r){
+void multiplyRows(DiagMatrix m, float* v, float* r){
 
 }
 
@@ -203,7 +234,7 @@ int main(int argc, char** argv){
     int d = atoi(argv[5]);
     int e = atoi(argv[6]);
 
-    csr_matrix_t* m = create_csr_matrix(dim ,dim ,a ,b ,c ,d ,e);
+    csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
     print_formated_csr_matrix(m);
 
     float* v = create_vector(dim);
@@ -213,19 +244,19 @@ int main(int argc, char** argv){
     struct timeval start, end;
 
     gettimeofday(&start, NULL);
-    multiply_naive(m ,v ,r1);
+    multiply_naive(m, v, r1);
     gettimeofday(&end, NULL);
 
     print_time(start, end);
 
-    s_matrix_t* s = create_s_matrix(dim, a, b, c, d, e);
-    //s_matrix_t* s = convert_to_s_matrix(m);
+    DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
+    convert_to_s_matrix(s, m);
 
     gettimeofday(&start, NULL);
-    multiply(s ,v ,r2);
+    multiplyDiags(s, v, r2);
     gettimeofday(&end, NULL);
 
     print_time(start, end);
 
-    compare(r1 ,r2 ,dim);
+    compare(r1, r2, dim);
 }
