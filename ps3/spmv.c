@@ -6,18 +6,18 @@
 #include <sys/time.h>
 
 typedef struct{
-    int n_row_ptr;
     int* row_ptr;
     int* col_ind;
     int n_values;
+    int n_row_ptr;
     float* values;
 } csr_matrix_t;
 
 typedef struct{
-    int* diag_ptr;      //Offsets of diagonals in the array "values"
-    int nrOfDiags;      //Amount of diagonals
-    float* values;      //The actual non-zero values
-    int* diag_index;    //Position of diagonal line in full matrix
+    int amnt;       //Amount of diagonals
+    int* offset;    //Offsets of diagonals in the array "values"
+    int* diag_id;   //Position of diagonal line in full matrix
+    float* values;  //The actual non-zero values
 } s_matrix_t;
 
 typedef s_matrix_t* DiagMatrix;
@@ -184,26 +184,50 @@ void compare(float* a, float* b, int n){
 }
 
 DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
+    int cntr = 1, a_half = (a-1)/2;
     DiagMatrix result = (DiagMatrix) malloc(sizeof(s_matrix_t));
-    result->nrOfDiags = a+d+e;
-    result->diag_index = (int*) malloc(sizeof(int)*result->nrOfDiags);
-    result->diag_ptr = (int*) malloc(sizeof(int)*(result->nrOfDiags+1));
+    result->amnt = a+2*(c+e);
+    result->offset = (int*) malloc(sizeof(int)*(result->amnt+1));
+    result->diag_id = (int*) malloc(sizeof(int)*result->amnt);
 
-    //UNFINISHED
+    //Setting the first diagonal id and offset, the biggest one of them all
+    result->offset[0] = 0;
+    result->diag_id[0] = 0;
+    result->offset[1] = dim;
+    int smallMat[3] = {a_half, c, e};
+    int smallOffset[3] = {1, a_half+b+2, a_half+b+c+d+2};
 
-    //Need to calculate positin in matrix for each diagonal line
-    for (int i = 0; i < result->nrOfDiags; ++i){
-        result->diag_index[i] = 0 /*something*/;
+    //Then setting the diagonal IDs
+    for (int i = 0; i < 3; ++i){
+        for (int j = 0; j < smallMat[i]; ++j){
+            for (int x = -1; x < 2; x += 2){
+               result->diag_id[cntr] = (smallOffset[i]+j)*x;
+               cntr++;
+            }
+        }
     }
 
-    //Need to calculate length of each diagonal line with values
-    int cntr = 0; result->diag_ptr[0] = 0;
-    for (int i = 1; i < result->nrOfDiags; ++i){
-        result->diag_ptr[i] = 0 /*something*/;
-        cntr += result->diag_ptr[i];
+    cntr = 0;
+    //Set the offsets in values for each diagonal
+    for (int i = 1; i < result->amnt+1; ++i){
+        cntr += dim-abs(result->diag_id[i]);
+        result->offset[i] = cntr;
     }
-    result->diag_ptr[result->nrOfDiags+1] = cntr;//Total size of values array.
 
+    result->values = (float*) malloc(sizeof(float)*result->offset[result->amnt]);
+
+    /*printf("value size: %d\n", result->offset[result->amnt]);
+
+    printf("diag_id:\n");
+    for (int i = 0; i < result->amnt; ++i){
+        printf("%d, ", result->diag_id[i]);
+    }
+
+    printf("\noffset:\n");
+    for (int i = 0; i < result->amnt+1; ++i){
+        printf("%d, ", result->offset[i]);
+    }
+    printf("\n");*/
 
     return result;
 }
@@ -213,11 +237,7 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
         NULL;
 }
 
-void multiplyDiags(DiagMatrix m, float* v, float* r){
-
-}
-
-void multiplyRows(DiagMatrix m, float* v, float* r){
+void multiply(DiagMatrix m, float* v, float* r){
 
 }
 
@@ -247,16 +267,16 @@ int main(int argc, char** argv){
     multiply_naive(m, v, r1);
     gettimeofday(&end, NULL);
 
-    print_time(start, end);
+    //print_time(start, end);
 
     DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
     convert_to_s_matrix(s, m);
 
     gettimeofday(&start, NULL);
-    multiplyDiags(s, v, r2);
+    multiply(s, v, r2);
     gettimeofday(&end, NULL);
 
-    print_time(start, end);
+    //print_time(start, end);
 
-    compare(r1, r2, dim);
+    //compare(r1, r2, dim);
 }
