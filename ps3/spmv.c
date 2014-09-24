@@ -5,6 +5,10 @@
 #include <time.h>
 #include <sys/time.h>
 
+//For use in multiply()
+#define min(a, b) (a < b) ? a : b
+#define max(a, b) (a > b) ? a : b
+
 typedef struct{
     int* row_ptr;
     int* col_ind;
@@ -245,16 +249,10 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
 void multiply(DiagMatrix m, float* v, float* r){
     int start, end, row_offset, col_offset;
     for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
-        row_offset = 0;
-        col_offset = 0;
-        if (0 < m->diag_id[i]){//If diag starts with values on row == 0, displace r
-            col_offset = m->offset[1]+1+m->diag_id[i];
-        }
-        if (0 > m->diag_id[i]) {//If diag starts with values on a different row than row 0, displace v
-            row_offset = m->offset[1]+1+m->diag_id[i];
-        }
         end = m->offset[i+1];
         start = m->offset[i];
+        row_offset = min(0, m->diag_id[i]);//If diag starts with values on row 0, displace r
+        col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
         for (int j = start; j < end; ++j){
             r[j-start+row_offset] += v[j-start+col_offset]*m->values[j];
         }
@@ -274,8 +272,11 @@ int main(int argc, char** argv){
     int d = atoi(argv[5]);
     int e = atoi(argv[6]);
 
+    //printf("Min test: %d\n", min(-15, 0));
+    //printf("Max test: %d\n", max(15, 0));
+
     csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
-    print_formated_csr_matrix(m);
+    //print_formated_csr_matrix(m);
 
     float* v = create_vector(dim);
     float* r1 = (float*)calloc(dim, sizeof(float));
@@ -287,16 +288,19 @@ int main(int argc, char** argv){
     multiply_naive(m, v, r1);
     gettimeofday(&end, NULL);
 
-    //print_time(start, end);
+    print_time(start, end);
 
+    printf("Entering create_s_matrix\n");
     DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
+    printf("Entering convert_to_s_matrix\n");
     convert_to_s_matrix(s, m);
 
+    printf("Entering multiply\n");
     gettimeofday(&start, NULL);
     multiply(s, v, r2);
     gettimeofday(&end, NULL);
 
-    //print_time(start, end);
+    print_time(start, end);
 
-    //compare(r1, r2, dim);
+    compare(r1, r2, dim);
 }
