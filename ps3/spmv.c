@@ -192,14 +192,15 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     int cntr = 1, a_half = (a-1)/2;
     DiagMatrix result = (DiagMatrix) malloc(sizeof(s_matrix_t));
     result->amnt = a+2*(c+e);
-    result->offset = (int*) malloc(sizeof(int)*(result->amnt+1));
     result->diag_id = (int*) malloc(sizeof(int)*result->amnt);
+    result->offset = (int*) malloc(sizeof(int)*(result->amnt+1));
+    result->values = (float*) malloc(sizeof(float)*result->offset[result->amnt]);
 
     //Setting the first diagonal id and offset, the biggest one of them all
     result->offset[0] = 0;
     result->diag_id[0] = 0;
     int smallMat[3] = {a_half, c, e}; //How wide each band of diagonals are (two sets of these bands, above and below diagonal 0)
-    int smallOffset[3] = {1, a_half+b+1, a_half+b+c+d+1}; //Offset from diagonal 0 on where each diagonal band starts
+    int smallOffset[3] = {1, 1+a_half+b, 1+a_half+b+c+d}; //Offset from diagonal 0 on where each diagonal band starts
 
     //Then setting the diagonal IDs
     for (int i = 0; i < 3; ++i){
@@ -211,17 +212,18 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
         }
     }
 
+    printf("\nSetting offsets!\n");
     //Set the offsets in values for each diagonal
-    result->offset[0] = 0;
-    for (int i = 1; i < result->amnt; ++i){
-        cntr = dim-abs(result->diag_id[i-1]);
-        result->offset[i] = cntr + result->offset[i-1];
+    result->offset[0] = 0; cntr = 0;
+    for (int i = 1; i < result->amnt+1; ++i){
+        cntr += dim-abs(result->diag_id[i-1]);
+        result->offset[i] = cntr;
+        printf("cntr: %d\noffset[%d]: %d\n", cntr, i-1, result->offset[i-1]);
     }
-    result->offset[result->amnt] = result->offset[result->amnt-1];
+    printf("result->offset[result->amnt-1]: %d\n", result->offset[result->amnt-1]);
 
-    result->values = (float*) malloc(sizeof(float)*result->offset[result->amnt]);
 
-    printf("value size: %d\n", result->offset[result->amnt]);
+    printf("\nvalue size: %d\n", result->offset[result->amnt]);
 
     printf("diag_id:\n");
     for (int i = 0; i < result->amnt; ++i){
