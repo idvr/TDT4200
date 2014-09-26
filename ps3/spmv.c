@@ -6,8 +6,8 @@
 #include <sys/time.h>
 
 //For use in multiply()
-int min(int a, int b){return a<b ?a:b;}
-int max(int a, int b){return a>b ?a:b;}
+int min(int a, int b){return a<b ? a:b;}
+int max(int a, int b){return a>b ? a:b;}
 
 typedef struct{
     int* row_ptr;
@@ -158,10 +158,11 @@ void print_vector(float* v, int n, int orientation){
         printf("\n");
 }
 
-void print_time(struct timeval start, struct timeval end){
+double print_time(struct timeval start, struct timeval end){
     long int ms = ((end.tv_sec * 1000000 + end.tv_usec) - (start.tv_sec * 1000000 + start.tv_usec));
     double s = ms/1e6;
     printf("Time (ms): %f s\n", s);
+    return s;
 }
 
 void multiply_naive(csr_matrix_t* m, float* v, float* r){
@@ -177,13 +178,13 @@ void compare(float* a, float* b, int n){
     for(int i = 0; i < n; i++){
         if(fabs(a[i] - b[i]) > 1e-4){
             n_errors++;
-            if(n_errors < 10){
+            if(n_errors < 40){
                 printf("Error at: %d, expected: %f, actual: %f\n", i, a[i], b[i]);
             }
         }
     }
     if (10 <= n_errors){
-        printf("%d more errors...\n", n_errors - 10);
+        printf("%d errors...\n", n_errors);
     }
 }
 
@@ -197,9 +198,8 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     //Setting the first diagonal id and offset, the biggest one of them all
     result->offset[0] = 0;
     result->diag_id[0] = 0;
-    result->offset[1] = dim;
-    int smallMat[3] = {a_half, c, e};
-    int smallOffset[3] = {1, a_half+b+2, a_half+b+c+d+2};
+    int smallMat[3] = {a_half, c, e}; //How wide each band of diagonals are (two sets of these bands, above and below diagonal 0)
+    int smallOffset[3] = {1, a_half+b+1, a_half+b+c+d+1}; //Offset from diagonal 0 on where each diagonal band starts
 
     //Then setting the diagonal IDs
     for (int i = 0; i < 3; ++i){
@@ -212,15 +212,16 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     }
 
     //Set the offsets in values for each diagonal
-    cntr = 0; result->offset[0] = cntr;
-    for (int i = 1; i < result->amnt+1; ++i){
-        cntr += dim-abs(result->diag_id[i-1]);
-        result->offset[i] = cntr;
+    result->offset[0] = 0;
+    for (int i = 1; i < result->amnt; ++i){
+        cntr = dim-abs(result->diag_id[i-1]);
+        result->offset[i] = cntr + result->offset[i-1];
     }
+    result->offset[result->amnt] = result->offset[result->amnt-1];
 
     result->values = (float*) malloc(sizeof(float)*result->offset[result->amnt]);
 
-    /*printf("value size: %d\n", result->offset[result->amnt]);
+    printf("value size: %d\n", result->offset[result->amnt]);
 
     printf("diag_id:\n");
     for (int i = 0; i < result->amnt; ++i){
@@ -231,19 +232,39 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     for (int i = 0; i < result->amnt+1; ++i){
         printf("%d, ", result->offset[i]);
     }
-    printf("\n");*/
+    printf("\n");
 
     return result;
 }
 
 DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
-    int diag, offset;
-    for (int row = 0; row < csr->n_row_ptr; ++row){                             //For each row of the matrix (CSR format)
-        for (int col = csr->row_ptr[row]; col < csr->row_ptr[row+1]; ++col){    //For each coloumn with non-zero elements (CSR format)
-            diag = (row-col);                                                   //Which diagonal does current element belong to?
-            if (0 == diag){offset = row;}                                       //What number in the diagonal is this one
-            else{(0 < diag) ? (offset = (row+diag)) : (offset = (col-diag));}
-            mat->values[mat->offset[diag]+offset] = csr->values[csr->col_ind[col]];
+    int diag = 0, offset = 0, dims = mat->offset[mat->amnt]+1, col, cntr = 0;
+    printf("Entered convert function\n");
+    for (int row = 0; row < csr->n_row_ptr-1; ++row){//For each row of the matrix (CSR format)
+        for (int row_element = csr->row_ptr[row]; row_element < csr->row_ptr[row+1]; ++row_element){//For each non-zero element in row (CSR format)
+            col = csr->col_ind[row_element]; offset = 0;
+            diag = (col-row); //Which diagonal does current element belong to?
+
+            //If diag != 0, sum the length of all diagonals that come before current matrix element in mat->values
+            if(diag){
+                offset += dims; //First diagonal is always diagonal 0
+                //The negative diags come before the positive: 0, -1, 1, -2, 2, ...
+                for (int i = 1; i < abs(diag-1); ++i){
+                    offset += (dims-abs(diag-i))*2;
+                }
+                //If diag is positive, add the identical negative's length to offset
+                if(0 < diag){
+                    offset += (dims-abs(diag));
+                }
+            }
+            //At what number inside the diagonal does this element appear?
+            offset += min(row, col);
+
+            /*printf("cntr: %d, row: %d, col: %d, offset: %d, csr->col_ind[col]: %d\n",
+                cntr, row, col, offset, csr->col_ind[col]); cntr++;*/
+
+            //Do transfer of value
+            mat->values[offset] = csr->values[row_element];
         }
     }
     return mat;
@@ -259,13 +280,9 @@ void multRes(float* restrict res, float* restrict diag, float* restrict vec,
 void multiply(DiagMatrix m, float* v, float* r){
     int start, end, row_offset, col_offset;
     for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
-        end = m->offset[i+1];
-        start = m->offset[i];
         row_offset = min(0, m->diag_id[i]);//If diag starts with values on row 0, displace r
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
-        /*for (int j = start; j < end; ++j){
-            r[j-start+row_offset] += v[j-start+col_offset]*m->values[j];
-        }*/
+        end = m->offset[i+1]; start = m->offset[i];
         multRes(r, m->values, v, start, end, col_offset, row_offset);
     }
 }
@@ -276,42 +293,46 @@ int main(int argc, char** argv){
         exit(-1);
     }
 
-    int dim = atoi(argv[1]);
-    int a = atoi(argv[2]);
-    int b = atoi(argv[3]);
-    int c = atoi(argv[4]);
-    int d = atoi(argv[5]);
-    int e = atoi(argv[6]);
-
-    //printf("Min test: %d\n", min(-15, 0));
-    //printf("Max test: %d\n", max(15, 0));
+    int a = atoi(argv[2]); int b = atoi(argv[3]); int c = atoi(argv[4]);
+    int d = atoi(argv[5]); int e = atoi(argv[6]); int dim = atoi(argv[1]);
 
     csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
-    //print_formated_csr_matrix(m);
+    print_formated_csr_matrix(m);
+    printf("csr->n_values: %d\n", m->n_values);
+    //printf("Printing csr->row_ptr:\n");
+    for (int i = 0; i < m->n_row_ptr-1; ++i){
+        //printf("\nrow_ptr[%d]: %d, row_ptr[%d]: %d\n", i, m->row_ptr[i], i+1, m->row_ptr[i+1]);
+        for (int j = m->row_ptr[i]; j < m->row_ptr[i+1]; ++j){
+            //printf("%d\t", m->col_ind[j]);
+        }
+    }
 
+    struct timeval start, end;
     float* v = create_vector(dim);
     float* r1 = (float*)calloc(dim, sizeof(float));
     float* r2 = (float*)calloc(dim, sizeof(float));
 
-    struct timeval start, end;
-
-    gettimeofday(&start, NULL);
-    multiply_naive(m, v, r1);
-    gettimeofday(&end, NULL);
-
-    print_time(start, end);
+    gettimeofday(&start, NULL); multiply_naive(m, v, r1);
+    gettimeofday(&end, NULL); print_time(start, end);
 
     //printf("Entering create_s_matrix\n");
     DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
+
     printf("Entering convert_to_s_matrix\n");
     convert_to_s_matrix(s, m);
 
-    printf("Entering multiply\n");
-    gettimeofday(&start, NULL);
-    multiply(s, v, r2);
-    gettimeofday(&end, NULL);
 
-    print_time(start, end);
+    for (int i = 0; i < s->amnt; ++i){
+        printf("Diag nr. %d:\n", i);
+        for (int j = s->offset[i]; j < s->offset[i+1]; ++j){
+            printf("%.2f ", s->values[j]);
+        }
+        printf("\n");
+    }
+
+    printf("Entering multiply\n");
+    gettimeofday(&start, NULL); multiply(s, v, r2);
+    gettimeofday(&end, NULL); print_time(start, end);
 
     compare(r1, r2, dim);
 }
