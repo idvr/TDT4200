@@ -211,10 +211,10 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
         }
     }
 
-    cntr = 0;
     //Set the offsets in values for each diagonal
+    cntr = 0; result->offset[0] = cntr;
     for (int i = 1; i < result->amnt+1; ++i){
-        cntr += dim-abs(result->diag_id[i]);
+        cntr += dim-abs(result->diag_id[i-1]);
         result->offset[i] = cntr;
     }
 
@@ -237,12 +237,15 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
 }
 
 DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
-    int diags = mat->amnt;
-    mat->values[0] = csr->values[0];
-    for (int i = 0; i < csr->n_row_ptr; ++i){
-
+    int diag, offset;
+    for (int row = 0; row < csr->n_row_ptr; ++row){                             //For each row of the matrix (CSR format)
+        for (int col = csr->row_ptr[row]; col < csr->row_ptr[row+1]; ++col){    //For each coloumn with non-zero elements (CSR format)
+            diag = (row-col);                                                   //Which diagonal does current element belong to?
+            if (0 == diag){offset = row;}                                       //What number in the diagonal is this one
+            else{(0 < diag) ? (offset = (row+diag)) : (offset = (col-diag));}
+            mat->values[mat->offset[diag]+offset] = csr->values[csr->col_ind[col]];
+        }
     }
-
     return mat;
 }
 
