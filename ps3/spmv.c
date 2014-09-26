@@ -220,7 +220,7 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
         //printf("cntr: %d\noffset[%d]: %d\n", cntr, i-1, result->offset[i-1]);
     }
 
-    printf("\nvalue size: %d\n", result->offset[result->amnt]);
+    /*printf("\nvalue size: %d\n", result->offset[result->amnt]);
 
     printf("diag_id:\n");
     for (int i = 0; i < result->amnt; ++i){
@@ -231,7 +231,7 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     for (int i = 0; i < result->amnt+1; ++i){
         printf("%d, ", result->offset[i]);
     }
-    printf("\n\n");
+    printf("\n\n");*/
 
     return result;
 }
@@ -250,17 +250,17 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
                 }
             }
 
-            if (0 == row){
+            /*if (0 == row){
                 printf("Transferring %.2f from csr to position %d in diag nr %d\n", csr->values[row_element], offset, diag_index);
                 printf("cntr: %d, row: %d, col: %d, offset: %d, diag_index:%d, row_element: %d\n\n",
                     cntr, row, col, offset+mat->offset[diag_index], diag_index, row_element); cntr++;
-            }
+            }*/
 
             //Do transfer of value
             mat->values[mat->offset[diag_index]+offset] = csr->values[row_element];
         }
-        printf("\n");
     }
+        //printf("\n");
     return mat;
 }
 
@@ -274,7 +274,7 @@ void multRes(float* restrict res, float* restrict diag, float* restrict vec,
 void multiply(DiagMatrix m, float* v, float* r){
     int start, end, row_offset, col_offset;
     for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
-        //do I need to switch the min() and max() below?
+        //do I need to switch the min() and max() below? Don't think so, will confirm if time > 0.
         row_offset = min(0, m->diag_id[i]);//If diag starts with values on row 0, displace r
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
         end = m->offset[i+1]; start = m->offset[i];
@@ -292,15 +292,7 @@ int main(int argc, char** argv){
     int d = atoi(argv[5]); int e = atoi(argv[6]); int dim = atoi(argv[1]);
 
     csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
-    print_formated_csr_matrix(m);
-    printf("csr->n_values: %d\n", m->n_values);
-    //printf("Printing csr->row_ptr:\n");
-    for (int i = 0; i < m->n_row_ptr-1; ++i){
-        //printf("\nrow_ptr[%d]: %d, row_ptr[%d]: %d\n", i, m->row_ptr[i], i+1, m->row_ptr[i+1]);
-        for (int j = m->row_ptr[i]; j < m->row_ptr[i+1]; ++j){
-            //printf("%d\t", m->col_ind[j]);
-        }
-    }
+    //print_formated_csr_matrix(m);
 
     struct timeval start, end;
     float* v = create_vector(dim);
@@ -313,18 +305,17 @@ int main(int argc, char** argv){
     //printf("Entering create_s_matrix\n");
     DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
 
-    printf("Entering convert_to_s_matrix\n");
+    //printf("Entering convert_to_s_matrix\n");
     convert_to_s_matrix(s, m);
-    printf("Exited convert_to_s_matrix\n\n");
+    //printf("Exited convert_to_s_matrix\n\n");
 
-
-    for (int i = 0; i < s->amnt; ++i){
-        printf("Diag nr. %d:\n", i);
+    /*for (int i = 0; i < s->amnt; ++i){
+        printf("Diag nr. %d:\n", s->diag_id[i]);
         for (int j = s->offset[i]; j < s->offset[i+1]; ++j){
             printf("%.2f ", s->values[j]);
         }
         printf("\n");
-    }
+    }*/
 
     printf("Entering multiply\n");
     gettimeofday(&start, NULL); multiply(s, v, r2);
