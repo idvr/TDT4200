@@ -212,16 +212,13 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
         }
     }
 
-    printf("\nSetting offsets!\n");
     //Set the offsets in values for each diagonal
     result->offset[0] = 0; cntr = 0;
     for (int i = 1; i < result->amnt+1; ++i){
         cntr += dim-abs(result->diag_id[i-1]);
         result->offset[i] = cntr;
-        printf("cntr: %d\noffset[%d]: %d\n", cntr, i-1, result->offset[i-1]);
+        //printf("cntr: %d\noffset[%d]: %d\n", cntr, i-1, result->offset[i-1]);
     }
-    printf("result->offset[result->amnt-1]: %d\n", result->offset[result->amnt-1]);
-
 
     printf("\nvalue size: %d\n", result->offset[result->amnt]);
 
@@ -234,40 +231,35 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     for (int i = 0; i < result->amnt+1; ++i){
         printf("%d, ", result->offset[i]);
     }
-    printf("\n");
+    printf("\n\n");
 
     return result;
 }
 
 DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
-    int diag = 0, offset = 0, dims = mat->offset[mat->amnt]+1, col, cntr = 0;
-    printf("Entered convert function\n");
+    int col, dims = mat->offset[0]+1,
+        diag, offset, cntr = 0, diag_index, test = 0;
     for (int row = 0; row < csr->n_row_ptr-1; ++row){//For each row of the matrix (CSR format)
         for (int row_element = csr->row_ptr[row]; row_element < csr->row_ptr[row+1]; ++row_element){//For each non-zero element in row (CSR format)
-            col = csr->col_ind[row_element]; offset = 0;
-            diag = (col-row); //Which diagonal does current element belong to?
-
-            //If diag != 0, sum the length of all diagonals that come before current matrix element in mat->values
-            if(diag){
-                offset += dims; //First diagonal is always diagonal 0
-                //The negative diags come before the positive: 0, -1, 1, -2, 2, ...
-                for (int i = 1; i < abs(diag-1); ++i){
-                    offset += (dims-abs(diag-i))*2;
-                }
-                //If diag is positive, add the identical negative's length to offset
-                if(0 < diag){
-                    offset += (dims-abs(diag));
+            col = csr->col_ind[row_element]; diag = (row-col); //Which diagonal does current element belong to?
+            offset = min(row, col); //At what number inside the diagonal does this element appear?
+            //Find out which number (X) in mat->offset[X] the diagonal is
+            for (int i = 0; i < mat->amnt; ++i){
+                if(mat->diag_id[i] == diag){
+                    test++; diag_index = i; break;
                 }
             }
-            //At what number inside the diagonal does this element appear?
-            offset += min(row, col);
 
-            /*printf("cntr: %d, row: %d, col: %d, offset: %d, csr->col_ind[col]: %d\n",
-                cntr, row, col, offset, csr->col_ind[col]); cntr++;*/
+            if (0 == row){
+                printf("Transferring %.2f from csr to position %d in diag nr %d\n", csr->values[row_element], offset, diag_index);
+                printf("cntr: %d, row: %d, col: %d, offset: %d, diag_index:%d, row_element: %d\n\n",
+                    cntr, row, col, offset+mat->offset[diag_index], diag_index, row_element); cntr++;
+            }
 
             //Do transfer of value
-            mat->values[offset] = csr->values[row_element];
+            mat->values[mat->offset[diag_index]+offset] = csr->values[row_element];
         }
+        printf("\n");
     }
     return mat;
 }
@@ -282,6 +274,7 @@ void multRes(float* restrict res, float* restrict diag, float* restrict vec,
 void multiply(DiagMatrix m, float* v, float* r){
     int start, end, row_offset, col_offset;
     for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
+        //do I need to switch the min() and max() below?
         row_offset = min(0, m->diag_id[i]);//If diag starts with values on row 0, displace r
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
         end = m->offset[i+1]; start = m->offset[i];
@@ -322,6 +315,7 @@ int main(int argc, char** argv){
 
     printf("Entering convert_to_s_matrix\n");
     convert_to_s_matrix(s, m);
+    printf("Exited convert_to_s_matrix\n\n");
 
 
     for (int i = 0; i < s->amnt; ++i){
