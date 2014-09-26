@@ -246,6 +246,13 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
     return mat;
 }
 
+void multRes(float* restrict res, float* restrict diag, float* restrict vec,
+    int start, int stop, int col_offset, int row_offset){
+    for (int i = start; i < stop; ++i){
+        res[i-start+row_offset] += vec[i-start+col_offset]*diag[i];
+    }
+}
+
 void multiply(DiagMatrix m, float* v, float* r){
     int start, end, row_offset, col_offset;
     for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
@@ -253,9 +260,10 @@ void multiply(DiagMatrix m, float* v, float* r){
         start = m->offset[i];
         row_offset = min(0, m->diag_id[i]);//If diag starts with values on row 0, displace r
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
-        for (int j = start; j < end; ++j){
+        /*for (int j = start; j < end; ++j){
             r[j-start+row_offset] += v[j-start+col_offset]*m->values[j];
-        }
+        }*/
+        multRes(r, m->values, v, start, end, col_offset, row_offset);
     }
 }
 
