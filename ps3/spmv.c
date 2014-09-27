@@ -217,10 +217,9 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     for (int i = 1; i < result->amnt+1; ++i){
         cntr += dim-abs(result->diag_id[i-1]);
         result->offset[i] = cntr;
-        //printf("cntr: %d\noffset[%d]: %d\n", cntr, i-1, result->offset[i-1]);
     }
 
-    /*printf("\nvalue size: %d\n", result->offset[result->amnt]);
+    printf("\nvalue size: %d\n", result->offset[result->amnt]);
 
     printf("diag_id:\n");
     for (int i = 0; i < result->amnt; ++i){
@@ -231,36 +230,32 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     for (int i = 0; i < result->amnt+1; ++i){
         printf("%d, ", result->offset[i]);
     }
-    printf("\n\n");*/
+    printf("\n\n");
 
     return result;
 }
 
 DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
-    int col, dims = mat->offset[0]+1,
-        diag, offset, cntr = 0, diag_index, test = 0;
+    int col, diag_val, offset, diag_index;
+
     for (int row = 0; row < csr->n_row_ptr-1; ++row){//For each row of the matrix (CSR format)
         for (int row_element = csr->row_ptr[row]; row_element < csr->row_ptr[row+1]; ++row_element){//For each non-zero element in row (CSR format)
-            col = csr->col_ind[row_element]; diag = (row-col); //Which diagonal does current element belong to?
-            offset = min(row, col); //At what number inside the diagonal does this element appear?
+            col = csr->col_ind[row_element];
+            diag_val = (col-row); //Which diagonal does current element belong to?
             //Find out which number (X) in mat->offset[X] the diagonal is
             for (int i = 0; i < mat->amnt; ++i){
-                if(mat->diag_id[i] == diag){
-                    test++; diag_index = i; break;
+                if(mat->diag_id[i] == diag_val){
+                    diag_index = i;
+                    break;
                 }
             }
-
-            /*if (0 == row){
-                printf("Transferring %.2f from csr to position %d in diag nr %d\n", csr->values[row_element], offset, diag_index);
-                printf("cntr: %d, row: %d, col: %d, offset: %d, diag_index:%d, row_element: %d\n\n",
-                    cntr, row, col, offset+mat->offset[diag_index], diag_index, row_element); cntr++;
-            }*/
+            //At what offset inside values does this element appear?
+            offset = mat->offset[diag_index]+min(row, col);
 
             //Do transfer of value
-            mat->values[mat->offset[diag_index]+offset] = csr->values[row_element];
+            mat->values[offset] = csr->values[row_element];
         }
     }
-        //printf("\n");
     return mat;
 }
 
@@ -292,7 +287,7 @@ int main(int argc, char** argv){
     int d = atoi(argv[5]); int e = atoi(argv[6]); int dim = atoi(argv[1]);
 
     csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
-    //print_formated_csr_matrix(m);
+    print_formated_csr_matrix(m);
 
     struct timeval start, end;
     float* v = create_vector(dim);
@@ -309,13 +304,13 @@ int main(int argc, char** argv){
     convert_to_s_matrix(s, m);
     //printf("Exited convert_to_s_matrix\n\n");
 
-    /*for (int i = 0; i < s->amnt; ++i){
+    for (int i = 0; i < s->amnt; ++i){
         printf("Diag nr. %d:\n", s->diag_id[i]);
         for (int j = s->offset[i]; j < s->offset[i+1]; ++j){
             printf("%.2f ", s->values[j]);
         }
         printf("\n");
-    }*/
+    }
 
     printf("Entering multiply\n");
     gettimeofday(&start, NULL); multiply(s, v, r2);
