@@ -10,7 +10,7 @@ valgrind: spmv-debug
 	valgrind ./spmv 5 3 0 1 0 1
 
 fast: spmv-release
-	./spmv 100 11 4 5 3 4
+	./spmv 100000 401 200 100 200 10
 
 spmv-release: spmv.c
 	gcc -std=c99 -O3 -msse3 spmv.c -o spmv -lm

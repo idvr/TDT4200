@@ -177,7 +177,7 @@ void multiply_naive(csr_matrix_t* m, float* v, float* r){
 void compare(float* a, float* b, int n){
     int n_errors = 0;
     for(int i = 0; i < n; i++){
-        if(fabs(a[i] - b[i]) > 1e-4){
+        if(fabs(a[i] - b[i]) > 1e-3){
             n_errors++;
             if(n_errors < 40){
                 printf("Error at: %d, expected: %f, actual: %f\n", i, a[i], b[i]);
@@ -240,7 +240,6 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
             offset = mat->offset[diag_index]+min(row, col);
 
             //Do transfer of value
-            if(0 == row && 0 == col) {printf("row:%d, col:%d\noffset: %d, row_element:%d\n", row, col, offset, row_element);}
             mat->values[offset] = csr->values[row_element];
         }
     }
@@ -249,7 +248,6 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
 
 void multRes(float* restrict res, float* restrict diag, float* restrict vec, int start, int stop, int col_offset, int row_offset){
     for (int i = start; i < stop; ++i){
-        printf("vec:%d, diag:%i\n", i-start+col_offset, diag[i]);
         res[i-start+row_offset] += vec[i-start+col_offset]*diag[i];
     }
 }
@@ -261,7 +259,6 @@ void multiply(DiagMatrix m, float* v, float* r){
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
         row_offset = abs(min(0, m->diag_id[i]));//If diag starts with values on row 0, displace r
         end = m->offset[i+1]; start = m->offset[i];
-        printf("start: %d\n", start);
         multRes(r, m->values, v, start, end, col_offset, row_offset);
     }
 }
