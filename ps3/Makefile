@@ -4,10 +4,10 @@ clustis: spmv-release
 	qrsh -cwd ./spmv 100000 401 200 100 200 10
 
 run: spmv-debug
-	./spmv 10 3 1 2 1 2
+	./spmv 5 1 1 1 1 1
 
 valgrind: spmv-debug
-	valgrind ./spmv 25 5 2 3 2 3
+	valgrind ./spmv 5 1 1 1 1 1
 
 fast: spmv-release
 	./spmv 25 5 2 3 2 3

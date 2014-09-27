@@ -150,8 +150,9 @@ float* create_vector(int n){
 }
 
 void print_vector(float* v, int n, int orientation){
+    printf("\n");
     for(int i = 0; i < n; i++){
-        printf("%f%s", v[i], orientation ? " " : "\n");
+        printf("%.2f%s", v[i], orientation ? " " : "\n");
     }
 
     if(orientation)
@@ -219,19 +220,6 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
         result->offset[i] = cntr;
     }
 
-    printf("\nvalue size: %d\n", result->offset[result->amnt]);
-
-    printf("diag_id:\n");
-    for (int i = 0; i < result->amnt; ++i){
-        printf("%d, ", result->diag_id[i]);
-    }
-
-    printf("\noffset:\n");
-    for (int i = 0; i < result->amnt+1; ++i){
-        printf("%d, ", result->offset[i]);
-    }
-    printf("\n\n");
-
     return result;
 }
 
@@ -270,8 +258,8 @@ void multiply(DiagMatrix m, float* v, float* r){
     int start, end, row_offset, col_offset;
     for (int i = 0; i < m->amnt; ++i){//Iterate over diagonals and calculate constants for inner for-loop
         //do I need to switch the min() and max() below? Don't think so, will confirm if time > 0.
-        row_offset = min(0, m->diag_id[i]);//If diag starts with values on row 0, displace r
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
+        row_offset = abs(min(0, m->diag_id[i]));//If diag starts with values on row 0, displace r
         end = m->offset[i+1]; start = m->offset[i];
         multRes(r, m->values, v, start, end, col_offset, row_offset);
     }
@@ -289,13 +277,14 @@ int main(int argc, char** argv){
     csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
     print_formated_csr_matrix(m);
 
+    double time1, time2;
     struct timeval start, end;
     float* v = create_vector(dim);
     float* r1 = (float*)calloc(dim, sizeof(float));
     float* r2 = (float*)calloc(dim, sizeof(float));
 
     gettimeofday(&start, NULL); multiply_naive(m, v, r1);
-    gettimeofday(&end, NULL); print_time(start, end);
+    gettimeofday(&end, NULL); time1 = print_time(start, end);
 
     //printf("Entering create_s_matrix\n");
     DiagMatrix s = create_s_matrix(dim, a, b, c, d, e);
@@ -304,17 +293,10 @@ int main(int argc, char** argv){
     convert_to_s_matrix(s, m);
     //printf("Exited convert_to_s_matrix\n\n");
 
-    for (int i = 0; i < s->amnt; ++i){
-        printf("Diag nr. %d:\n", s->diag_id[i]);
-        for (int j = s->offset[i]; j < s->offset[i+1]; ++j){
-            printf("%.2f ", s->values[j]);
-        }
-        printf("\n");
-    }
-
     printf("Entering multiply\n");
     gettimeofday(&start, NULL); multiply(s, v, r2);
-    gettimeofday(&end, NULL); print_time(start, end);
+    gettimeofday(&end, NULL); time2 = print_time(start, end);
+    printf("Speedup: %.3f\n", time1/time2);
 
     compare(r1, r2, dim);
 }
