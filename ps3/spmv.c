@@ -195,7 +195,6 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
     result->amnt = a+2*(c+e);
     result->diag_id = (int*) malloc(sizeof(int)*result->amnt);
     result->offset = (int*) malloc(sizeof(int)*(result->amnt+1));
-    result->values = (float*) malloc(sizeof(float)*result->offset[result->amnt]);
 
     //Setting the first diagonal id and offset, the biggest one of them all
     result->offset[0] = 0;
@@ -219,13 +218,13 @@ DiagMatrix create_s_matrix(int dim, int a, int b, int c, int d, int e){
         cntr += dim-abs(result->diag_id[i-1]);
         result->offset[i] = cntr;
     }
+    result->values = (float*) malloc(sizeof(float)*result->offset[result->amnt]);
 
     return result;
 }
 
 DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
     int col, diag_val, offset, diag_index;
-
     for (int row = 0; row < csr->n_row_ptr-1; ++row){//For each row of the matrix (CSR format)
         for (int row_element = csr->row_ptr[row]; row_element < csr->row_ptr[row+1]; ++row_element){//For each non-zero element in row (CSR format)
             col = csr->col_ind[row_element];
@@ -241,15 +240,16 @@ DiagMatrix convert_to_s_matrix(DiagMatrix mat, csr_matrix_t* csr){
             offset = mat->offset[diag_index]+min(row, col);
 
             //Do transfer of value
+            if(0 == row && 0 == col) {printf("row:%d, col:%d\noffset: %d, row_element:%d\n", row, col, offset, row_element);}
             mat->values[offset] = csr->values[row_element];
         }
     }
     return mat;
 }
 
-void multRes(float* restrict res, float* restrict diag, float* restrict vec,
-    int start, int stop, int col_offset, int row_offset){
+void multRes(float* restrict res, float* restrict diag, float* restrict vec, int start, int stop, int col_offset, int row_offset){
     for (int i = start; i < stop; ++i){
+        printf("vec:%d, diag:%i\n", i-start+col_offset, diag[i]);
         res[i-start+row_offset] += vec[i-start+col_offset]*diag[i];
     }
 }
@@ -261,6 +261,7 @@ void multiply(DiagMatrix m, float* v, float* r){
         col_offset = max(0, m->diag_id[i]);//If diag starts with values on a different row than row 0, displace v
         row_offset = abs(min(0, m->diag_id[i]));//If diag starts with values on row 0, displace r
         end = m->offset[i+1]; start = m->offset[i];
+        printf("start: %d\n", start);
         multRes(r, m->values, v, start, end, col_offset, row_offset);
     }
 }
@@ -275,7 +276,7 @@ int main(int argc, char** argv){
     int d = atoi(argv[5]); int e = atoi(argv[6]); int dim = atoi(argv[1]);
 
     csr_matrix_t* m = create_csr_matrix(dim, dim, a, b, c, d, e);
-    print_formated_csr_matrix(m);
+    //print_formated_csr_matrix(m);
 
     double time1, time2;
     struct timeval start, end;
