@@ -43,7 +43,7 @@ program with threads.
 share cache/main memory. (Or equivalently across different aspects of the memory
 hierarchy).
 
-A distributed memory system is when (in the abovementioned examples), the
+A distributed memory system is when (in the aforementioned examples), the
 cache/main memory is spread across all the different cores/processors, but still
 interconnected.
 
@@ -134,7 +134,7 @@ with $8$ threads is the time it takes for one thread to execute $128it$.
             1024\times b(i) &= 1024it
         \end{align*}
 
-        Since we're using a dynamic schedule  with \textit{chunk size} equalling
+        Since we're using a dynamic schedule  with \textit{chunk size} equaling
 $100$, it means that all the $8$ threads are allocated $100$ iterations at a
 time, hence:
 
@@ -164,7 +164,7 @@ Hence, the first thread will be given $512i^2t$ work to be done, the next
 available thread will be given $256i^2t$, and so on. The limiting factor here
 will be that there are only $8$ threads available. With no overhead due to
 scheduling, and the above list being $11$ elements long, this implies that the
-slowest thread to finish will be the first one. The one reciving $512i^2t$. \\
+slowest thread to finish will be the first one. The one receiving $512i^2t$. \\
 
 
 Thus, this example will take $512i^2t$ to execute.
@@ -185,119 +185,90 @@ iterations to each thread, namely $125$ each.
 \section{Problem 3, Deadlocks and Races}
 \begin{enumerate}[a)]
 
-    \item \textit{Branch prediction} is when a prediction is made regarding
-which  option an if-clause will choose, so that the data of the (hopefully correctly chosen if-clause) can be already loaded into cache when it's needed.
+    \item A \textit{race condition} occurs when two ``actors'' (e.g. threads)
+access a  shared variable at the same time, such that one actor has updated the
+value of the shared variable before the second actor uses the value, but after
+it has read the value (accessed the variable). Or similarly (and hence the
+name), they both operate on the variable, returning different ``new'' values for
+it, racing to see who gets to write the value to the variable last. This since
+the last write will be the one that remains after the two ``actors'' access to
+the shared variable.
 
-If the prediction made is correct, then there can be performance improvement due
-to the data already being in cache when referenced the first time, due to the
-data being loaded at the preceding if-clause.
+    \item A \textit{deadlock} is when two ``actors'' each lock one of two
+variables  such that no other ``actors''can use it, and then both wait for the
+other to finish with their respective locked variables so that both can
+continue. As a result, each ``actor'' waits indefinitely for the other to
+finish, completely stopping (freezing) the program flow, making it hang.
 
-    \item Total time for code execution $T_{tot}$:
-    \begin{align*}
-        T_{tot} &= n((p+f)r + (1-r)(p+s))
-    \end{align*}
-
+    \item Deadlock or race condition present:
     \begin{enumerate}[I)]
 
-        \item By setting the time cost of running all iterations through the
-slow function $(p+s)n$ to be less than the total run-cost $T_{tot}$, we can find
-the value $r$ has to be to make this a beneficial trade. But since the branch
-predictor always assumes the if-clause to return false, we need to add the
-branch prediction cost $b$ for the fast alternative.
+        \item There's a race condition present on \lstinline!j!, since the line
+containing (nor the variable itself) \lstinline!j++;! is not protected from such accesses. There is no deadlock present.
 
-        \begin{align*}
-            sn &< n((p+b+f)r + (1-r)(p+s)) \\
-            s &< (p+b+f)r + (p+s) - r(p+s) \\
-            -p &< (p+b+f)r - r(p+s) \\
-            p &> r((p+s) - (p+b+f)) \\
-            p &> r(s-b-f) \\
-            \frac{p}{(s-b-f)} &< r
-        \end{align*}
+        \item Neither a deadlock or race condition is present. However, this
+code will  never complete, resulting in the program hanging. There is nothing
+modifying the variable \lstinline§i§ such that it at some points fails the
+while-loop check.
 
-$r$ has to be bigger than $\frac{p}{s-b-f}$ for the code to be faster by
-running all the iterations through the slow function, instead of keeping the if-
-clause. This relies on $s \ge p+b+f$, otherwise $r$ will not be positive with
-a value between $0$ and $1$.
+        \item \todo[inline]{NO CLUE!!!}
 
-    \item If the branch predictor always mispredicts, $T_{tot}$ then becomes
-$T_{tot} = n(r(f+b+p) + (1-r)(s+b+p))$. When setting the new $T_{tot}$ to take
-longer time than just using the slow function, $r$ has to be:
-
-        \begin{align*}
-            sn &< n(r(f+b+p) + (1-r)(s+b+p)) \\
-            s &< r(f+b+p) + (s+b+p) -r(s+b+p) \\
-            s - (s+b+p) &< r(f-s) \\
-            (b+p) &< r(s-f) \\
-            \frac{b+p}{s-f} &< r
-        \end{align*}
+        \item \todo[inline]{NO CLUE!!!}
 
     \end{enumerate}
 \end{enumerate}
 
-\section{Problem 5, Optimization}
+\section{Problem 4, Reduction}
 \begin{enumerate}[a)]
+    \item \begin{enumerate}[A]
+        \item \begin{align*}
+            (2\times 15) + 1 &= 30 + 1 = 31
+        \end{align*}
 
-    \item If the table is sufficiently big so that a look-up in the table takes
-sufficient time (e.g. does not fit in cache), the code might get slowed down by this ``optimization''.
+        \item \begin{align*}
+            (4\times 7) + 3 &= 28 + 3 = 31
+        \end{align*}
 
-However, if the table isn't too big (fits in cache), and say is possible to
-access like a hash table in $O(1)$ time, then that will be faster than a
-function that which is slow to compute the return value.
+        \item \begin{align*}
+            (8\times 3) + (2\times 3) + 1 &= 24 + 6 + 1 = 31
+        \end{align*}
 
-    \item Assumption \textbf{1}: \textit{f()} returns ints, of $32$ bits length.
+        \item \begin{align*}
+            (16\times 1) + (8\times 1) + (4\times 1) + (2\times 1) + 1 &=
+            16 + 8 + 4 + 2 + 1 = 31
+        \end{align*}
+    \end{enumerate}
 
-Assumption \textbf{2}: Time it takes to index table is constant/inconsequential,
-no matter the size.
+    \item Assumption: The maximum number of threads operating in parallel is
+based on the maximum of amount of discrete blocks on an horizontal level for
+each subproblem.
+    \begin{enumerate}[A]
+    \item $2$
 
-Assumption \textbf{3}: Hit rate of cache in this problem,
-given table size, is simply $\frac{cache\thickspace size}{table\thickspace size}$.
+    \item $4$
 
-Given assumptions \textbf{1}, \textbf{2}, and \textbf{3}, this question asks how
-big the cache must be, so that the cache misses are few enough, such that it
-will be faster to replace \textit{f()} with a table.
+    \item $8$
 
-Since \textit{f()} in the example only receives values between $0$ and
-$(127\times 128) + 1024 = 17\thickspace 280$, the table size does not have to
-fit more ints than this. Total table size (denoted as $S$) then has to be equal
-or greater than $17\thickspace 280*32 = 552\thickspace 960$ to fit all the
-(potentially) different return values.
+    \item $16$
 
-Cache size will be denoted as $X$. The time the code requires to execute with
-\textit{f()} will be denoted as $T_f$, and the time the code requires to execute
-with the table will be denoted as $T_t$.
+    \end{enumerate}
 
-    \begin{align*}
-        T_{f()} = T_f &= 128\times 4\times 1024\times 5h
-        = 2\thickspace 621\thickspace 440h \\
-        T_{table} = T_t &= hS\times(\frac{X}{S} + (1-\frac{X}{S})10)\\
-        T_t &= h(10S- 9X)
-    \end{align*}
-
-Hence, the equation becomes:
-
-    \begin{align*}
-        T_t &< T_f \\
-        h(10S-9X) &< 2\thickspace 621\thickspace 440h \\
-        10S - 9X &< 2\thickspace 621\thickspace 440 \\
-        10\times 552\thickspace 960 - 9X &< 2\thickspace 621\thickspace 440 \\
-        9X &< 10\times 552\thickspace 960 - 2\thickspace 621\thickspace 440 \\
-        9X &> 2\thickspace 908\thickspace 160 \\
-        X &> \frac{2\thickspace 908\thickspace 160}{9}
-    \end{align*}
-
-With a value for $X$ in bits, we can then divide this by $64\times 8 = 512$ to
-find out how many cache lines $c$ are necessary to have a sufficiently large
-cache:
-
-    \begin{align*}
-        c &= \frac{\frac{2\thickspace 908\thickspace 160}{9}}{512} \\
-        c &= \frac{5680}{9} \approx 631.10
-    \end{align*}
-
-The cache must be a minumum of $632$ cache lines big, where each cache line is
-$64$ bytes long. This results in a minimum of $323\thickspace 584$ bits
-necessary cache size for replacing \textit{f()} with a table to be an
-improvement.
+    \item Assumption \textbf{1}: The definition of ``best'' is the fastest
+alternative. \\
+    Assumption \textbf{2}: The time it takes to perform an addition is
+constant, $C$. \\
+    Assumption \textbf{3}: There is no overhead in reads/writes for the threads,
+and they share memory space so no transfer is needed. \\
+    Assumption \textbf{4}: There is a small cost of assigning work to threads,
+but this  is constant, independent of size of workload assigned to thread. This
+constant is denoted as $t$.
+    \begin{enumerate}[A]
+        \item $2(15C+t) + (C+t) = 30C+2t+C+t = 31C + 3t$
+        \item $4(7C+t) + (3C+t) = 28C+4t+3C+t = 31C + 5t$
+        \item $8(3C+t) + 2(3C+t) + (C+t) = 24C+8t+6C+2t+C+t = 31C + 11t $
+        \item $16(C+t) + 8(C+t) + 4(C+t) + 2(C+t) + (C+t) = (16+8+4+2+1)(C+t) =
+        31(C+t)$
+    \end{enumerate}
 
 \end{enumerate}
 
