@@ -44,6 +44,6 @@ ps2/out.bmp
 *.tar.gz
 ps3/spmv
 ps4/*_out.bmp
-ps4/histogram_omp
-ps4/histogram_pthreads
-ps4/histogram_serial
+ps4/omp
+ps4/pthreads
+ps4/serial
