@@ -1,0 +1,306 @@
+%Problem Set 1 LaTeX report for TDT4200
+\documentclass[fontsize=11pt, paper=a4, titlepage]{article}
+\input{../../config} %config.tex file in same directory for all reports
+
+\begin{document}
+
+\begin{center}
+
+{\huge Problem Set 4, Theory}\\[0.5cm]
+
+\textsc{\LARGE TDT4200 -}\\[0.5cm]
+\textsc{\large Parallel Computations}\\[1.0cm]
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c}
+        \textsc{Christian Chavez}
+    \end{tabular}
+\end{table}
+
+\end{center}
+\vfill
+\hfill \large{\today}
+\clearpage
+
+\section{Problem 1, Multithreading}
+\begin{enumerate}[a)]
+
+    \item \textit{MPI} is a library of functions used to achieve parallelism
+primarily through processes, not threads, and thus is best suited a distributed
+memory environment.
+
+\textit{OpenMP} is both a library and a C extension which gives the programmer
+library functions to achieve thread-level parallelism, as well as
+\lstinline!#pragmas! which can tell the compiler to parallelize certain portions
+of the code.
+
+\textit{Pthreads} (\textbf{P}osix \textbf{threads}) is a standardized
+programming interface which hardware vendors implemented to allow programmers to
+program with threads.
+
+    \item A shared memory system is a memory system where all cores/processors
+share cache/main memory. (Or equivalently across different aspects of the memory
+hierarchy).
+
+A distributed memory system is when (in the abovementioned examples), the
+cache/main memory is spread across all the different cores/processors, but still
+interconnected.
+
+    \item Distributed memory has the drawback of achieving synchronicity of all
+the distributed copies of data, and hence a very complex memory management
+system for it to look like a ``shared memory system'' for the software
+developers using the system. However, it has the benefit of being simpler to
+implement hardware-wise, and the complex parts of the memory management system
+does not have to be implemented in hardware, it can be implemented in software.
+Hence, it's also easier to add/remove memory from this system without having to
+take the whole system down. The communication system in a distributed memory
+system is a lot bigger than the memory system for a shared memory however, and
+this is often seen as a resource-costly drawback.
+
+A shared memory system has the drawback of managing the atomicity of the
+data/variables in memory, something a distributed system does not have to worry
+about, since in a distributed system all the cores/processors have each their
+own memory/cache with a local copy of the variable to work on. As mentioned
+however, the distributed system does need to enable atomicity through
+communication (called synchronicity above), which a shared system does not need
+to worry about, since there only exists one copy.
+
+In an attempt to sum up: Shared memory systems need only $M$ lines of
+communication, where $M$ is the amount of processors/cores, while distributed
+memory needs upto $M^2$ lines of communication (here's where the synchronicity
+complexity comes into play when we try to minimize this cost by implementing
+topologies like hypercubes).
+
+Shared memory systems need to make sure that two ``actors'' don't access the
+same data at the same time, while a distributed memory system needs to update
+all the distributed local copies of data throughout its network whenever an
+``actor'' changes its local copy.
+
+\end{enumerate}
+
+\section{Problem 2, Load balancing}
+\begin{enumerate}[a)]
+
+    \item OpenMP has three different for-loop scheduling clauses:
+    \begin{enumerate}[1)]
+
+        \item \textbf{static} allocates iterations to all the threads before
+they execute their loop-iterations. By default, iterations are divided equally,
+but \textit{chunk} can specify a number of contiguous iterations for each
+thread.
+
+        \item \textbf{dynamic} allocates some iterations to a smaller number of
+threads. Once any thread finishes its allocated iterations, it checks and
+retrieves another iteration if there are more left. \textit{chunk} specifies the
+number of contiguous iterations given to any thread at start or when a thread
+requests more work.
+
+        \item \textbf{guided} A large portion of contiguous threads are
+allocated to  each thread like in \textbf{dynamic} (above). The portion decreases exponentially with each successive allocation of iterations down to a minimum size specified in the parameter \textit{chunk}.
+
+    \end{enumerate}
+
+    \item Assumption \textbf{1}: There's no communication cost regarding/due to
+scheduling, like when a thread finishes its allocated iterations and
+checks/requests new ones.
+
+Assumption \textbf{2}: There's no interdependency between iterations whatsoever.
+Including accessing functions \lstinline!a()!, \lstinline!b()!, \lstinline!c()!,
+aswell as \lstinline!table[]!.
+
+Assumption \textbf{3}: The time to execute two different iterations with the
+same function calls is identical no matter what the iteration count is.
+
+    \begin{enumerate}[I)]
+
+        \item\begin{align*}
+            \frac{1024\times a(i)}{Amount\thickspace of\thickspace threads} &=
+            \frac{1024\times t}{8}\\
+            &= 128t
+        \end{align*}
+        Since \textit{chunk size} equals $128$, the time it will take to finish
+with $8$ threads is the time it takes for one thread to execute $128t$.
+
+        \item\begin{align*}
+            \frac{1024\times b(i)}{Amount\thickspace of\thickspace threads} &=
+            \frac{1024\times it}{8}\\
+            &= 128it
+        \end{align*}
+        Since \textit{chunk size} equals $128$, the time it will take to finish
+with $8$ threads is the time it takes for one thread to execute $128it$.
+
+        \item\begin{align*}
+            1024\times b(i) &= 1024it
+        \end{align*}
+
+        Since we're using a dynamic schedule  with \textit{chunk size} equalling
+$100$, it means that all the $8$ threads are allocated $100$ iterations at a
+time, hence:
+
+        \begin{align*}
+            \frac{1024it}{100} &= 10.24it = T_{WorkPerChunk}\\
+            \frac{T_{TotalWork}}{T_{WorkPerChunk}} &= \frac{1024it}{10.24it} = 100 Chunks
+        \end{align*}
+
+        Execution time for this example equals the the amount of \textit{chunks}
+divided by the number of available threads; $\frac{100}{8}= 12.5$. This means
+that it's the work of a chunk multiplied with the amount of chunks per thread
+which decided total execution time: $13\times 10.24it = 162.5$. \\
+
+Not all threads will need all this time, but half of them will, since the $.5$
+in $12.5$ means that half the threads will run a full $T_{WorkPerChunk}$ extra
+to finish.
+
+        \item\begin{align*}
+            T_{TotalWork} &= 1024\times i^2t = 1024i^2t
+        \end{align*}
+
+        Since this example uses \textbf{guided}, that means it will use the
+following chunk sizes (in order) to split the iteration's workload: $\{512, 256,
+128, 64, 32, 16, 8, 4, 2, 1, 1\}$.
+
+Hence, the first thread will be given $512i^2t$ work to be done, the next
+available thread will be given $256i^2t$, and so on. The limiting factor here
+will be that there are only $8$ threads available. With no overhead due to
+scheduling, and the above list being $11$ elements long, this implies that the
+slowest thread to finish will be the first one. The one reciving $512i^2t$. \\
+
+
+Thus, this example will take $512i^2t$ to execute.
+
+    \end{enumerate}
+
+    \item \begin{align*}
+            T_{TotalWork} &= 1000\times(t+it) = 1000it+1000t \\
+          T_{WorkPerThread} &= \frac{1000(t+it)}{8} = 125(t+it)
+        \end{align*}
+
+        Since $1000\%8 == 0$, given assumption \textbf{3}, the best
+loadbalancing would be to assign an equal amount of contiguous
+iterations to each thread, namely $125$ each.
+
+\end{enumerate}
+
+\section{Problem 3, Deadlocks and Races}
+\begin{enumerate}[a)]
+
+    \item \textit{Branch prediction} is when a prediction is made regarding
+which  option an if-clause will choose, so that the data of the (hopefully correctly chosen if-clause) can be already loaded into cache when it's needed.
+
+If the prediction made is correct, then there can be performance improvement due
+to the data already being in cache when referenced the first time, due to the
+data being loaded at the preceding if-clause.
+
+    \item Total time for code execution $T_{tot}$:
+    \begin{align*}
+        T_{tot} &= n((p+f)r + (1-r)(p+s))
+    \end{align*}
+
+    \begin{enumerate}[I)]
+
+        \item By setting the time cost of running all iterations through the
+slow function $(p+s)n$ to be less than the total run-cost $T_{tot}$, we can find
+the value $r$ has to be to make this a beneficial trade. But since the branch
+predictor always assumes the if-clause to return false, we need to add the
+branch prediction cost $b$ for the fast alternative.
+
+        \begin{align*}
+            sn &< n((p+b+f)r + (1-r)(p+s)) \\
+            s &< (p+b+f)r + (p+s) - r(p+s) \\
+            -p &< (p+b+f)r - r(p+s) \\
+            p &> r((p+s) - (p+b+f)) \\
+            p &> r(s-b-f) \\
+            \frac{p}{(s-b-f)} &< r
+        \end{align*}
+
+$r$ has to be bigger than $\frac{p}{s-b-f}$ for the code to be faster by
+running all the iterations through the slow function, instead of keeping the if-
+clause. This relies on $s \ge p+b+f$, otherwise $r$ will not be positive with
+a value between $0$ and $1$.
+
+    \item If the branch predictor always mispredicts, $T_{tot}$ then becomes
+$T_{tot} = n(r(f+b+p) + (1-r)(s+b+p))$. When setting the new $T_{tot}$ to take
+longer time than just using the slow function, $r$ has to be:
+
+        \begin{align*}
+            sn &< n(r(f+b+p) + (1-r)(s+b+p)) \\
+            s &< r(f+b+p) + (s+b+p) -r(s+b+p) \\
+            s - (s+b+p) &< r(f-s) \\
+            (b+p) &< r(s-f) \\
+            \frac{b+p}{s-f} &< r
+        \end{align*}
+
+    \end{enumerate}
+\end{enumerate}
+
+\section{Problem 5, Optimization}
+\begin{enumerate}[a)]
+
+    \item If the table is sufficiently big so that a look-up in the table takes
+sufficient time (e.g. does not fit in cache), the code might get slowed down by this ``optimization''.
+
+However, if the table isn't too big (fits in cache), and say is possible to
+access like a hash table in $O(1)$ time, then that will be faster than a
+function that which is slow to compute the return value.
+
+    \item Assumption \textbf{1}: \textit{f()} returns ints, of $32$ bits length.
+
+Assumption \textbf{2}: Time it takes to index table is constant/inconsequential,
+no matter the size.
+
+Assumption \textbf{3}: Hit rate of cache in this problem,
+given table size, is simply $\frac{cache\thickspace size}{table\thickspace size}$.
+
+Given assumptions \textbf{1}, \textbf{2}, and \textbf{3}, this question asks how
+big the cache must be, so that the cache misses are few enough, such that it
+will be faster to replace \textit{f()} with a table.
+
+Since \textit{f()} in the example only receives values between $0$ and
+$(127\times 128) + 1024 = 17\thickspace 280$, the table size does not have to
+fit more ints than this. Total table size (denoted as $S$) then has to be equal
+or greater than $17\thickspace 280*32 = 552\thickspace 960$ to fit all the
+(potentially) different return values.
+
+Cache size will be denoted as $X$. The time the code requires to execute with
+\textit{f()} will be denoted as $T_f$, and the time the code requires to execute
+with the table will be denoted as $T_t$.
+
+    \begin{align*}
+        T_{f()} = T_f &= 128\times 4\times 1024\times 5h
+        = 2\thickspace 621\thickspace 440h \\
+        T_{table} = T_t &= hS\times(\frac{X}{S} + (1-\frac{X}{S})10)\\
+        T_t &= h(10S- 9X)
+    \end{align*}
+
+Hence, the equation becomes:
+
+    \begin{align*}
+        T_t &< T_f \\
+        h(10S-9X) &< 2\thickspace 621\thickspace 440h \\
+        10S - 9X &< 2\thickspace 621\thickspace 440 \\
+        10\times 552\thickspace 960 - 9X &< 2\thickspace 621\thickspace 440 \\
+        9X &< 10\times 552\thickspace 960 - 2\thickspace 621\thickspace 440 \\
+        9X &> 2\thickspace 908\thickspace 160 \\
+        X &> \frac{2\thickspace 908\thickspace 160}{9}
+    \end{align*}
+
+With a value for $X$ in bits, we can then divide this by $64\times 8 = 512$ to
+find out how many cache lines $c$ are necessary to have a sufficiently large
+cache:
+
+    \begin{align*}
+        c &= \frac{\frac{2\thickspace 908\thickspace 160}{9}}{512} \\
+        c &= \frac{5680}{9} \approx 631.10
+    \end{align*}
+
+The cache must be a minumum of $632$ cache lines big, where each cache line is
+$64$ bytes long. This results in a minimum of $323\thickspace 584$ bits
+necessary cache size for replacing \textit{f()} with a table to be an
+improvement.
+
+\end{enumerate}
+
+\vfill
+\hfill \large{\today}
+\end{document}
