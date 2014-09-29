@@ -1,0 +1,7 @@
+Kan multiplisere hver diagonal for seg:
+
+E F G H I      X                                      E X     F X     G X     H X     I X
+D E F G H      X                              D X     E X     F X     G X     H X
+C D E F G      X                      C X     D X     E X     F X     G X
+B C D E F  x   X  =        +  B X  +  C X  +  D X  +  E X  +  F X  +       +       +
+A B C D E      X      A X     B X     C X     D X  +  E X
