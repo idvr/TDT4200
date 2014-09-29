@@ -1,5 +1,6 @@
 all: clean serial omp pthreads run_serial run_omp run_pthreads
 
+#Variables for simplicity, so that I only have to edit _one_ location
 input:= light.bmp
 t_count:= 4
 
@@ -22,4 +23,4 @@ pthreads: histogram_pthreads.c
 	gcc -std=c99 -Wall -Wextra -pedantic -g histogram_pthreads.c bmp.c -o pthreads -pthread
 
 clean:
-	rm -f omp serial pthreads *out.bmp
+	rm -f omp serial pthreads *_out.bmp
