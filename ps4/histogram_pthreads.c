@@ -10,17 +10,17 @@ const int image_size = 512*512;
 const int color_depth = 255;
 
 typedef struct{
-    int start, stop;
+    int size;
     int *array;
 } histogram_t;
 
 typedef struct{
-    int start, stop;
+    int size;
     float *array;
 } transferFunction_t;
 
 typedef struct{
-    int start, stop;
+    int size;
     unsigned char *array;
 } image_t;
 
@@ -39,9 +39,6 @@ typedef struct{
 typedef threadData_t* ThreadData;
 
 void* work(void* td){
-    //Debug purposes
-    printf("Thread entered work()!!\n");
-
     //Making shorthand pointers to values for simplicity
     ThreadData data = (ThreadData) td;
     Histogram hist = (Histogram) data->histogram;
@@ -50,19 +47,19 @@ void* work(void* td){
     TransferFunction transfer = (TransferFunction) data->transfer_function;
 
     //Making of histogram
-    for (int i = input->start; i < input->stop; ++i){
+    for (int i = 0; i < input->size; ++i){
         hist->array[input->array[i]]++;
     }
 
     //Making of transfer function
-    for(int i = transfer->start; i < transfer->stop; i++){
-        for(int j = transfer->start; j < i+1; j++){
+    for(int i = 0; i < transfer->size; i++){
+        for(int j = 0; j < i+1; j++){
             transfer->array[i] += color_depth*((float)hist->array[j])/(image_size);
         }
     }
 
     //Making of output image
-    for(int i = input->start; i < input->stop; i++){
+    for(int i = 0; i < input->size; i++){
         output->array[i] = transfer->array[input->array[i]];
     }
     return NULL;
@@ -76,10 +73,10 @@ int main(int argc, char** argv){
     int n_threads = atoi(argv[2]);
 
     ThreadData data[n_threads];
-    pthread_t thread[n_threads];
+    pthread_t thread[n_threads ];
     unsigned char* image = read_bmp(argv[1]);
-    int image_per_thread = (image_size-1)/n_threads;
-    int color_per_thread = (color_depth-1)/n_threads;
+    int image_per_thread = 0; //(image_size-1)/n_threads;
+    int color_per_thread = 0; //(color_depth-1)/n_threads;
 
     int* histogram = (int*)calloc(sizeof(int), color_depth);
     float* transfer_function = (float*)calloc(sizeof(float), color_depth);
@@ -93,39 +90,35 @@ int main(int argc, char** argv){
         data[i]->input_image = (InputImage) malloc(sizeof(image_t));
         data[i]->histogram = (Histogram) malloc(sizeof(histogram_t));
         data[i]->output_image = (OutputImage) malloc(sizeof(image_t));
-        data[i]->transfer_function = (TransferFunction) malloc(sizeof(
-            transferFunction_t));
+        data[i]->transfer_function = (TransferFunction)
+            malloc(sizeof(transferFunction_t));
 
         //Input Image Data
-        data[i]->input_image->array = image;
-        data[i]->input_image->start = i*image_per_thread;
-        data[i]->input_image->stop = (i+1)*image_per_thread;
+        data[i]->input_image->size = image_per_thread;
+        data[i]->input_image->array = image+(i*image_per_thread);
 
         //Histogram Data
-        data[i]->histogram->array = histogram;
-        data[i]->histogram->start = i*color_per_thread;
-        data[i]->histogram->stop = (i+1)*color_per_thread;
+        data[i]->histogram->size = color_per_thread;
+        data[i]->histogram->array = histogram+(i*color_per_thread);
 
         //Output Image Data
-        data[i]->output_image->array = output_image;
-        data[i]->output_image->start = i*image_per_thread;
-        data[i]->output_image->stop = (i+1)*image_per_thread;
+        data[i]->output_image->size = image_per_thread;
+        data[i]->output_image->array = output_image+(i*image_per_thread);
 
         //Transfer Function Data
-        data[i]->transfer_function->array = transfer_function;
-        data[i]->transfer_function->start = i*color_per_thread;
-        data[i]->transfer_function->stop = (i+1)*color_per_thread;
+        data[i]->transfer_function->size = color_per_thread;
+        data[i]->transfer_function->array = transfer_function+(i*color_per_thread);
     }
     /*Make sure that the last thread does not work on elements outside
         of the arrays if work%n_threads != 0*/
-    data[n_threads-1]->input_image->stop = image_size;
-    data[n_threads-1]->histogram->stop = color_depth;
-    data[n_threads-1]->output_image->stop = image_size;
-    data[n_threads-1]->transfer_function->stop = color_depth;
+    data[n_threads-1]->histogram->size = color_depth;
+    data[n_threads-1]->input_image->size = image_size;
+    data[n_threads-1]->output_image->size = image_size;
+    data[n_threads-1]->transfer_function->size = color_depth;
 
     //Launch threads
     for (int i = 0; i < n_threads; ++i){
-        pthread_create(&thread[i], NULL, work, &data[i]);
+        pthread_create(thread+i, NULL, work, data[i]);
     }
 
     //Wait for threads to finish and close them
