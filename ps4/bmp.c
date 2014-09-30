@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include "bmp.h"
 
-void write_bmp(unsigned char* data, int width, int height, char* name){
+void write_bmp(unsigned char* data, int width, int height, const char* name){
     struct bmp_id id;
     id.magic1 = 0x42;
     id.magic2 = 0x4D;
