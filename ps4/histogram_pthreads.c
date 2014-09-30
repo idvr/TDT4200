@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include "bmp.h"
 
 const int image_width = 512;
@@ -8,59 +9,63 @@ const int image_height = 512;
 const int image_size = 512*512;
 const int color_depth = 255;
 
-struct histogram_t{
+typedef struct{
     int start, stop;
     int *array;
-};
+} histogram_t;
 
-struct transferFunction_t{
+typedef struct{
     int start, stop;
     float *array;
-};
+} transferFunction_t;
 
-struct image_t{
+typedef struct{
     int start, stop;
     unsigned char *array;
-};
+} image_t;
 
 typedef image_t* InputImage;
 typedef image_t* OutputImage;
 typedef histogram_t* Histogram;
 typedef transferFunction_t* TransferFunction;
 
-struct threadData_t{
+typedef struct{
     Histogram histogram;
     InputImage input_image;
     OutputImage output_image;
     TransferFunction transfer_function;
-};
+} threadData_t;
 
 typedef threadData_t* ThreadData;
 
-void* work(ThreadData td){
-    Histogram histogram = (Histogram) td->histogram;
-    InputImage input_image = (InputImage) td->input_image;
-    OutputImage output_image = (OutputImage) td->output_image;
-    TransferFunction transfer_function = (TransferFunction)
-        td->transfer_function;
+void* work(void* td){
+    printf("Thread entered work()!!\n");
+    ThreadData data = (ThreadData) td;
 
+    //Making shorthand pointers to values for simplicity
+    Histogram hist = (Histogram) data->histogram;
+    InputImage input = (InputImage) data->input_image;
+    OutputImage output = (OutputImage) data->output_image;
+    TransferFunction transfer = (TransferFunction) data->transfer_function;
+
+    //
     //Making of histogram
-    for (int i = input_image->start; i < input_image->stop; ++i){
-        histogram->array[input_image->array[i]];
+    for (int i = input->start; i < input->stop; ++i){
+        hist->array[input->array[i]];
     }
 
     //Making of transfer function
-    for(int i = transfer_function->start; i < transfer_function->stop; i++){
-        for(int j = transfer_function->start; j < i+1; j++){
-            transfer_function->array[i] += color_depth*((float)histogram->array[j])/(image_size);
+    for(int i = transfer->start; i < transfer->stop; i++){
+        for(int j = transfer->start; j < i+1; j++){
+            transfer->array[i] += color_depth*((float)hist->array[j])/(image_size);
         }
     }
 
     //Making of output image
-    for(int i = output_image->start; i < output_image->stop; i++){
-        output_image->array[i] = transfer_function->array[input_image->array[i]];
+    for(int i = input->start; i < input->stop; i++){
+        output->array[i] = transfer->array[input->array[i]];
     }
-
+    return NULL;
 }
 
 int main(int argc, char** argv){
@@ -118,7 +123,17 @@ int main(int argc, char** argv){
     data[n_threads-1]->output_image->stop = image_size;
     data[n_threads-1]->transfer_function->stop = color_depth;
 
+    //Launch threads
+    for (int i = 0; i < n_threads; ++i){
+        pthread_create(&thread[i], NULL, work, &data[i]);
+    }
 
+    //Wait for threads to finish and close them
+    for (int i = 0; i < n_threads; ++i){
+        pthread_join(thread[i], NULL);
+    }
 
     write_bmp(output_image, image_width, image_height, "pthreads_out.bmp");
+
+    return 0;
 }
