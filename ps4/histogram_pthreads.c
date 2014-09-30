@@ -39,19 +39,19 @@ typedef struct{
 typedef threadData_t* ThreadData;
 
 void* work(void* td){
+    //Debug purposes
     printf("Thread entered work()!!\n");
-    ThreadData data = (ThreadData) td;
 
     //Making shorthand pointers to values for simplicity
+    ThreadData data = (ThreadData) td;
     Histogram hist = (Histogram) data->histogram;
     InputImage input = (InputImage) data->input_image;
     OutputImage output = (OutputImage) data->output_image;
     TransferFunction transfer = (TransferFunction) data->transfer_function;
 
-    //
     //Making of histogram
     for (int i = input->start; i < input->stop; ++i){
-        hist->array[input->array[i]];
+        hist->array[input->array[i]]++;
     }
 
     //Making of transfer function
