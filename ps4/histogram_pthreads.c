@@ -8,6 +8,7 @@ const int image_width = 512;
 const int image_height = 512;
 const int image_size = 512*512;
 const int color_depth = 255;
+pthread_mutex_t histogram_mutex;
 
 typedef struct{
     int size;
@@ -46,9 +47,11 @@ void* work(void* td){
     OutputImage output = (OutputImage) data->output_image;
     TransferFunction transfer = (TransferFunction) data->transfer_function;
 
-    //Making of histogram
+    //Making of histogram, the only part of the program with a race condition present
     for (int i = 0; i < input->size; ++i){
+        pthread_mutex_lock(&histogram_mutex);
         hist->array[input->array[i]]++;
+        pthread_mutex_unlock(&histogram_mutex);
     }
 
     //Making of transfer function
@@ -62,6 +65,7 @@ void* work(void* td){
     for(int i = 0; i < input->size; i++){
         output->array[i] = transfer->array[input->array[i]];
     }
+
     return NULL;
 }
 
@@ -92,22 +96,15 @@ int main(int argc, char** argv){
         data[i]->output_image = (OutputImage) malloc(sizeof(image_t));
         data[i]->transfer_function = (TransferFunction)
             malloc(sizeof(transferFunction_t));
-
-        //Input Image Data
-        data[i]->input_image->size = image_per_thread;
-        data[i]->input_image->array = image+(i*image_per_thread);
-
-        //Histogram Data
+        //Assigning thread-specific values
         data[i]->histogram->size = color_per_thread;
-        data[i]->histogram->array = histogram+(i*color_per_thread);
-
-        //Output Image Data
+        data[i]->input_image->size = image_per_thread;
         data[i]->output_image->size = image_per_thread;
-        data[i]->output_image->array = output_image+(i*image_per_thread);
-
-        //Transfer Function Data
         data[i]->transfer_function->size = color_per_thread;
-        data[i]->transfer_function->array = transfer_function+(i*color_per_thread);
+        data[i]->input_image->array = &image[i*image_per_thread];
+        data[i]->histogram->array = &histogram[i*color_per_thread];
+        data[i]->output_image->array = &output_image[i*image_per_thread];
+        data[i]->transfer_function->array = &transfer_function[i*color_per_thread];
     }
     /*Make sure that the last thread does not work on elements outside
         of the arrays if work%n_threads != 0*/
@@ -125,6 +122,12 @@ int main(int argc, char** argv){
     for (int i = 0; i < n_threads; ++i){
         pthread_join(thread[i], NULL);
     }
+
+    /*printf("Histogram:\n");
+    for (int i = 0; i < color_depth; ++i){
+        printf("%d, ", histogram[i]);
+    }
+    printf("\n");*/
 
     write_bmp(output_image, image_width, image_height, "pthreads_out.bmp");
 

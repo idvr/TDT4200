@@ -14,17 +14,15 @@ int main(int argc, char** argv){
         printf("Useage: %s image n_threads\n", argv[0]);
         exit(-1);
     }
-    int n_threads = atoi(argv[2]);
+    //int n_threads = atoi(argv[2]);
 
     unsigned char* image = read_bmp(argv[1]);
     unsigned char* output_image = malloc(sizeof(unsigned char) * image_size);
-
 
     int* histogram = (int*)calloc(sizeof(int), color_depth);
     for(int i = 0; i < image_size; i++){
         histogram[image[i]]++;
     }
-
 
     float* transfer_function = (float*)calloc(sizeof(float), color_depth);
     for(int i = 0; i < color_depth; i++){
@@ -33,10 +31,15 @@ int main(int argc, char** argv){
         }
     }
 
-
     for(int i = 0; i < image_size; i++){
         output_image[i] = transfer_function[image[i]];
     }
+
+    /*printf("Histogram:\n");
+    for (int i = 0; i < color_depth; ++i){
+        printf("%d, ", histogram[i]);
+    }
+    printf("\n");*/
 
     write_bmp(output_image, image_width, image_height, "serial_out.bmp");
 }
