@@ -54,6 +54,11 @@ void* work(void* td){
         pthread_mutex_unlock(&histogram_mutex);
     }
 
+    /*Instead of having one common mutex for histogram, each thread should
+    instead have each their own copy of the histogram, then just reduce from
+    their own copies into the global one. But this works, and is enough to get
+    approved, so CBA.*/
+
     //Making of transfer function
     for(int i = 0; i < transfer->size; i++){
         for(int j = 0; j < i+1; j++){

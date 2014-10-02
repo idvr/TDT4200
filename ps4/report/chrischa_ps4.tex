@@ -101,16 +101,9 @@ allocated to  each thread like in \textbf{dynamic} (above). The portion decrease
 
     \end{enumerate}
 
-    \item Assumption \textbf{1}: There's no communication cost regarding/due to
-scheduling, like when a thread finishes its allocated iterations and
-checks/requests new ones.
-
-Assumption \textbf{2}: There's no interdependency between iterations whatsoever.
-Including accessing functions \lstinline!a()!, \lstinline!b()!, \lstinline!c()!,
-aswell as \lstinline!table[]!.
-
-Assumption \textbf{3}: The time to execute two different iterations with the
-same function calls is identical no matter what the iteration count is.
+    \item Assumption \textbf{2}: There's no interdependency between iterations
+whatsoever. Including accessing functions \lstinline!a()!, \lstinline!b()!,
+\lstinline!c()!, aswell as \lstinline!table[]!.
 
     \begin{enumerate}[I)]
 
@@ -119,66 +112,89 @@ same function calls is identical no matter what the iteration count is.
             \frac{1024\times t}{8}\\
             &= 128t
         \end{align*}
-        Since \textit{chunk size} equals $128$, the time it will take to finish
-with $8$ threads is the time it takes for one thread to execute $128t$.
+Since \textit{chunk size} equals $128$, the time it will take to finish with $8$
+threads is the time it takes for one thread to execute $128t$.
 
         \item\begin{align*}
-            \frac{1024\times b(i)}{Amount\thickspace of\thickspace threads} &=
-            \frac{1024\times it}{8}\\
-            &= 128it
+            T_{TotalWork} &= \sum_{i=0}^{1023} b(i) = \sum_{i=0}^{1023} it
         \end{align*}
-        Since \textit{chunk size} equals $128$, the time it will take to finish
-with $8$ threads is the time it takes for one thread to execute $128it$.
+This one is almost identical to the previous one, except that the work per
+thread is not constant. Hence, the since, we're dealing with the same number of
+iterations, but different workload, the time it takes to complete will be the
+time it takes to complete the largest workload is $\sum_{i=896}^1023 it$.
 
         \item\begin{align*}
-            1024\times b(i) &= 1024it
+            T_{TotalWork} &= \sum_{i=0}^{1023} b(i) = \sum_{i=0}^{1023} it
         \end{align*}
 
-        Since we're using a dynamic schedule  with \textit{chunk size} equaling
-$100$, it means that all the $8$ threads are allocated $100$ iterations at a
-time, hence:
+Since we're using a dynamic schedule with \textit{chunk size} equaling $100$, it
+means that all the $8$ threads are allocated $100$ iterations at a time. Hence,
+since there's only $10.24$ multiples of $100$ in $1024$, and there's $8$ threads
+available, it means that there will be $3$ threads that will work through two
+\textit{chunks}/workloads.
 
-        \begin{align*}
-            \frac{1024it}{100} &= 10.24it = T_{WorkPerChunk}\\
-            \frac{T_{TotalWork}}{T_{WorkPerChunk}} &= \frac{1024it}{10.24it} = 100 Chunks
-        \end{align*}
+Again, like in the previous, the last chunk of $100$ iterations will be the
+slowest one (because the absolute last one is only $24$ elements large), which
+implies that the last thread to get assigned a second \textit{chunk} will be the
+one to run this workload which will dominate the run-time required. Since
+there's $3$ ``extra'' \textit{chunks}/workloads, the thread that gets the
+workload for $\sum_{i=100}^199 it$, will be the one to receive the largest
+workload of them all, namely $\sum_{i=900}^999 it$.
 
-        Execution time for this example equals the the amount of \textit{chunks}
-divided by the number of available threads; $\frac{100}{8}= 12.5$. This means
-that it's the work of a chunk multiplied with the amount of chunks per thread
-which decided total execution time: $13\times 10.24it = 162.5$. \\
-
-Not all threads will need all this time, but half of them will, since the $.5$
-in $12.5$ means that half the threads will run a full $T_{WorkPerChunk}$ extra
-to finish.
+As such, the time it will take to execute will be:
+$\sum_{i=100}^{199} it + \sum_{i=900}^{999} it = 109\thickspace 900t$
 
         \item\begin{align*}
-            T_{TotalWork} &= 1024\times i^2t = 1024i^2t
+            T_{TotalWork} &= \sum_{i=0}^{1023} i^2t =
+            357\thickspace 389\thickspace 824t
         \end{align*}
 
-        Since this example uses \textbf{guided}, that means it will use the
-following chunk sizes (in order) to split the iteration's workload: $\{512, 256,
-128, 64, 32, 16, 8, 4, 2, 1, 1\}$.
+Since this example uses \textbf{guided}, that means it will use the following
+chunk sizes of iterations to split the iteration's workload (in order): $\{512,
+256, 128, 64, 32, 16, 8, 4, 2, 1, 1\}$.
 
-Hence, the first thread will be given $512i^2t$ work to be done, the next
-available thread will be given $256i^2t$, and so on. The limiting factor here
-will be that there are only $8$ threads available. With no overhead due to
-scheduling, and the above list being $11$ elements long, this implies that the
-slowest thread to finish will be the first one. The one receiving $512i^2t$. \\
+Hence, the first thread will be given $\sum_{i=0}^{511}i^2t$ work to be done,
+the next available thread will be given $\sum_{i=512}^{767}i^2t$, and so on.
 
+There are two factors to consider in this problem; (1) the amount of threads
+($8$) is less than the amount of chunks that will be handed out to the threads
+($11$), and (2) the chunks are of varying time requirements (depending on the
+value of $i$).
 
-Thus, this example will take $512i^2t$ to execute.
+So since the largest work done by any one thread will either be two chunks, or
+the largest chunk of them all (if such a chunk exists). Hence, of the three
+``extra'' chunks which will be executed by a thread that's already done a chunk,
+are the ones numbered ${2, 1, 1}$ above. Since $\sum_{i=100}^{1021}i^2t$ is
+bigger than both $1022^2t$ and $1023^2t$, it's only the $9th$ chunk we need to
+compare with the biggest chunk of them all.
+
+The biggest chunk of them all will likely be in among the first three, as these
+last three show. The growth rate between each chunk does not change between the
+chunks, so there's no reason to check them all if we find one that is bigger
+than its neighbours. \\
+
+$\sum_{i=0}^{511}i^2t (\approx 44.6 \textrm{million}) < \sum_{i=512}^{767}i^2t
+(\approx 106 \textrm{million})$, and $106 \textrm{million} > \sum_{i=768}^{895}i
+^2t (\approx 88.7 \textrm{million}$. \\
+
+So, since $\sum_{i=0}^{511} i^2t + \sum_{i=1020}^{1021} i^2t <
+\sum_{i=512}^{767} i^2t$, the time it will take a thread to execute the $2nd$
+chunk, of size $256$, will be the most time consuming workload.
 
     \end{enumerate}
 
     \item \begin{align*}
-            T_{TotalWork} &= 1000\times(t+it) = 1000it+1000t \\
-          T_{WorkPerThread} &= \frac{1000(t+it)}{8} = 125(t+it)
-        \end{align*}
+        T_{TotalWork} &= \sum_{i=0}^{999} t+it = t\sum_{i=0}^{999} (i+1)
+    \end{align*}
 
-        Since $1000\%8 == 0$, given assumption \textbf{3}, the best
-loadbalancing would be to assign an equal amount of contiguous
-iterations to each thread, namely $125$ each.
+Since $\frac{1000}{8} = 125$ we could have just divided the iterations equally
+if each iteration had cost the same amount of time as any other. This not being
+the case, the best way to assign the iterations is to divide up the iterations
+into $2\times 8 = 16$ chunks, and have thread $j$ be assigned half of the first
+$125$ iterations, as well the last half of the last $125$. The next thread $j+1$
+should then be assigned the second half of the first $125$ iterations, and the
+first half of the last $125$ iterations. And so on, until the $8th$ thread takes
+the iterations from number $375$/$374$ to $624$/$625$, depending on how you index the iterations.
 
 \end{enumerate}
 
@@ -204,16 +220,17 @@ finish, completely stopping (freezing) the program flow, making it hang.
     \begin{enumerate}[I)]
 
         \item There's a race condition present on \lstinline!j!, since the line
-containing (nor the variable itself) \lstinline!j++;! is not protected from such accesses. There is no deadlock present.
+containing (nor the variable itself) \lstinline!j++;! is not protected from such
+accesses. There is no deadlock present.
 
         \item Neither a deadlock or race condition is present. However, this
-code will  never complete, resulting in the program hanging. There is nothing
+code will never complete, resulting in the program hanging. There is nothing
 modifying the variable \lstinline§i§ such that it at some points fails the
 while-loop check.
 
-        \item \todo[inline]{NO CLUE!!!}
+        \item No deadlock or race condition present.
 
-        \item \todo[inline]{NO CLUE!!!}
+        \item No deadlock or race condition present.
 
     \end{enumerate}
 \end{enumerate}
@@ -259,16 +276,23 @@ alternative. \\
 constant, $C$. \\
     Assumption \textbf{3}: There is no overhead in reads/writes for the threads,
 and they share memory space so no transfer is needed. \\
-    Assumption \textbf{4}: There is a small cost of assigning work to threads,
-but this  is constant, independent of size of workload assigned to thread. This
-constant is denoted as $t$.
+    Assumption \textbf{4}: Amdahl's law is valid here, since the workload is the
+same for all alternatives A, B, C, and D.
+
+    It's given that for each horizontal level, if the discrete blocks can be added
+up in parallel, it will be faster to do so than having all of the additions per
+horizontal level done in sequence. Hence, only the max nr. of threads per
+alternative will be considered for said alternative:
+
     \begin{enumerate}[A]
-        \item $2(15C+t) + (C+t) = 30C+2t+C+t = 31C + 3t$
-        \item $4(7C+t) + (3C+t) = 28C+4t+3C+t = 31C + 5t$
-        \item $8(3C+t) + 2(3C+t) + (C+t) = 24C+8t+6C+2t+C+t = 31C + 11t $
-        \item $16(C+t) + 8(C+t) + 4(C+t) + 2(C+t) + (C+t) = (16+8+4+2+1)(C+t) =
-        31(C+t)$
+    \item $2(15C) + C \Rightarrow 15C + C = 16C$
+    \item $4(7C) + 3C \Rightarrow 7C + 3C = 10C$
+    \item $8(3C) + 2(3C) + C \Rightarrow 3C + 3C + C = 7C $
+    \item $16C + 8C + 4C + 2C + C \Rightarrow C + C + C + C = 4C$
     \end{enumerate}
+
+    Alternative D with $16$ threads is then the fastest alternative in terms of
+multiples of $C$.
 
 \end{enumerate}
 
