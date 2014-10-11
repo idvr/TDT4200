@@ -1,4 +1,4 @@
-all: clean serial omp pthreads run_serial run_omp run_pthreads
+	all: clean serial omp pthreads run_serial run_omp run_pthreads
 
 #Variables for simplicity, so that I only have to edit _one_ location
 input:= light.bmp
