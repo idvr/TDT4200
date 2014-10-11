@@ -23,23 +23,55 @@
 \hfill \large{\today}
 \clearpage
 
-\section{Problem 1, CUDA}
+\section*{Problem 1, CUDA}
 \begin{enumerate}[a)]
 
-    \item bøa
+    \item
+    \begin{enumerate}[I)]
 
-    \item bøa
+        \item \textbf{CPU}: \\
+A \textbf{C}entral \textbf{P}rocessing \textbf{U}nit (CPU), is (as the
+name suggest) the main heavy-weight/heavy-duty versatile processing unit which
+does not shy away from using a lot of power (Wattage) for completing its
+calculations. CPUs also feature complicated (and power hungry) architectural
+optimizations like pipelining, cache prediction, and out-of-order execution.
 
-    \item bøa
+        \item \textbf{GPU}: \\
+A \textbf{G}raphics \textbf{P}rocessing \textbf{U}nit (GPU), is a processing
+unit meant for calculating, drawing, and rendering images at a high rate per
+second. Flaws in the image can be more easily forgiven due to the high density
+of pixels in a picture, which results in erroneous pixels not being very visible
+to the naked human eye. \\
+
+This makes the GPU more single-focused in its use. There are many applications
+where the GPU will outperform a CPU, especially with regards to energy
+efficiency, but a modern CPU is much more versatile than a GPU, allowing it to
+accomplish a much broader range of applications so much faster that in some
+cases it will win on energy-efficiency just because it finished the application
+so much quicker. \\
+
+Hence, its strength is focused on the throughput of the device, more so than on
+the CPU, where the the accuracy of the results counts as well.
+
+\end{enumerate}
+
+    \item Occupancy in CUDA is a metric for how effectively the \textbf{Grids}
+(which consist of \textbf{Blocks}, which in turn consist of \textit{Warps}), are
+utilized in the CUDA processor: $\text{Occupancy} = \frac{\text{Active
+Warps}}{\text{Maximum Active Warps}}$
+
+    \item A CUDA \textbf{Block} is a 2D subsection of a \textbf{Grid}, which in
+turn consists of \textit{Warps}. Each Warp in turn consists of 32 threads, the
+smallest SIMD
 
     \item bøa
 
 \end{enumerate}
 
-\section{Problem 2, Memory transfers}
+\section*{Problem 2, Memory transfers}
 
 
-\section{Problem 3, Thread divergence}
+\section*{Problem 3, Thread divergence}
 \begin{enumerate}[a)]
 
     \item bøa
@@ -55,7 +87,7 @@
     \end{enumerate}
 \end{enumerate}
 
-\section{Problem 4, Memory coalescing}
+\section*{Problem 4, Memory coalescing}
 \begin{enumerate}[I)]
 
     \item bøa
