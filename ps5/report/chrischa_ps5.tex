@@ -105,7 +105,7 @@ For it to be faster to use the GPU, $n$ must be larger than $2r/9$.
 \begin{enumerate}[a)]
 
     \item If the call to
-\begin{lstlisting}[language=C, numbers=none]
+\begin{lstlisting}[numbers=none]
 __syncthreads();
 \end{lstlisting}
 is not reached by all threads in the same \textbf{Block}, the behavior is
@@ -116,13 +116,20 @@ The CUDA documentation states that it is possible to put these calls inside
 conditionals, as long as it's guaranteed that all threads in a \textbf{Block}
 will reach said call.
 
-    \item bøa
+    \item The code in example II) will have the best performance.
 
     \begin{enumerate}[I)]
 
-        \item bøa
+        \item This code example will be slower to run, since threads are
+subsets of blocks. Hence, not all threads will run at the same time, making the
+block have to wait for different threads to finish (those that started later).
 
-        \item bøa
+        \item This code example will be faster to run, since the threads all
+have the same value in their \begin{lstlisting}[numbers=none]
+blockIdx.x
+\end{lstlisting}
+attributes. Hence, it will run faster since all threads in a block will start at
+the same time, and run concurrently.
 
     \end{enumerate}
 \end{enumerate}
