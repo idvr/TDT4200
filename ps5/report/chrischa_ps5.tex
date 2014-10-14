@@ -58,23 +58,63 @@ the CPU, where the the accuracy of the results counts as well.
     \item Occupancy in CUDA is a metric for how effectively the \textbf{Grids}
 (which consist of \textbf{Blocks}, which in turn consist of \textit{Warps}), are
 utilized in the CUDA processor: $\text{Occupancy} = \frac{\text{Active
-Warps}}{\text{Maximum Active Warps}}$
+Warps}}{\text{Maximum Active Warps}}$.
 
     \item A CUDA \textbf{Block} is a 2D subsection of a \textbf{Grid}, which in
 turn consists of \textit{Warps}. Each Warp in turn consists of 32 threads, the
-smallest SIMD
+smallest SIMT. \\
 
-    \item bøa
+There's additional differences between \textbf{Blocks} and \textit{Warps}, with
+regards to the memory resources they have, and how these are used/controlled.
+
+    \item Local memory is memory local to one specific thread. This memory is
+partitioned out of the general device memory, making it slow since it's
+accessible by any thread in the entire \textbf{Grid}. \\
+
+Shared memory however is only accessible by all threads in the same
+\textbf{Block}. This alleviates some of the memory access control issues,
+permitting operations on this memory to be faster than operations done on local
+memory. \\
+
+Local memory is only used when
+    \begin{itemize}
+        \item Datasize is not known at compile time.
+        \item Datasize will exceed available register space.
+        \item When register spilling occurs.
+    \end{itemize}
 
 \end{enumerate}
 
 \section*{Problem 2, Memory transfers}
+Assumption \textbf{1}: Transfer of data only necessary to GPU. Hence, total
+execution time for CPU is $kn^2 = 10n^2$. \\
+Assumption \textbf{2}: Data must be transferred both \textit{to} and
+\textit{from} the GPU, resulting in total execution time to become: $2rn + kn^2
+= 2rn + n^2 = n(2r+n)$.
 
+\begin{align*}
+    10n^2 &> n(2r+n) \\
+    10n &> 2r+n \\
+    9n &> 2r \\
+    n &> \frac{2r}{9}
+\end{align*}
+
+For it to be faster to use the GPU, $n$ must be larger than $2r/9$.
 
 \section*{Problem 3, Thread divergence}
 \begin{enumerate}[a)]
 
-    \item bøa
+    \item If the call to
+\begin{lstlisting}[language=C, numbers=none]
+__syncthreads();
+\end{lstlisting}
+is not reached by all threads in the same \textbf{Block}, the behavior is
+undefined, meaning that it is just as likely that it will deadlock, as it might
+crash, as it might return successfully, but with erroneous results. \\
+
+The CUDA documentation states that it is possible to put these calls inside
+conditionals, as long as it's guaranteed that all threads in a \textbf{Block}
+will reach said call.
 
     \item bøa
 
