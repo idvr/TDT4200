@@ -120,28 +120,35 @@ will reach said call.
 
     \begin{enumerate}[I)]
 
-        \item This code example will be slower to run, since threads are
-subsets of blocks. Hence, not all threads will run at the same time, making the
-block have to wait for different threads to finish (those that started later).
+        \item This code example will be slower to run, since the code is
+executed by 32 threads simultaneously in a \textit{Warp}. And since a
+\textit{Warp} consists of 32 threads, only $\frac{1}{4}$th of the threads will
+run at a time. The threads satisfying the first conditional will run first, with
+the remaining $\frac{3}{4}$ of the threads will stand by, idling. This will
+repeat for each conditional in the first code example.
 
         \item This code example will be faster to run, since the threads all
 have the same value in their \begin{lstlisting}[numbers=none]
 blockIdx.x
 \end{lstlisting}
 attributes. Hence, it will run faster since all threads in a block will start at
-the same time, and run concurrently.
+the same time, and run concurrently, as opposed to the previous code example.
 
     \end{enumerate}
 \end{enumerate}
 
 \section*{Problem 4, Memory coalescing}
-\begin{enumerate}[I)]
 
-    \item bøa
+The first code snippet (\textit{I}) will be the fastest code snippet, due to
+this code snippet utilizing memory coalescing. \\
 
-    \item bøa
+This because it makes each thread retrieve one element per row in the $n\times
+n$ data array, whilst the other makes each thread retrieve one whole row by
+itself, one thread after another. \\
 
-\end{enumerate}
+Memory Coalescing being that the threads retrieve data from consecutive
+locations in memory. AKA that thread $1$ retrieves the next data object after
+thread $0$, and so forth for a subset of the threads.
 
 \vfill
 \hfill \large{\today}
