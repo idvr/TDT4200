@@ -1,9 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include "bmp.h"
 
-void write_bmp(unsigned char* data, int width, int height){
+void write_bmp(unsigned char* data, int width, int height, const char* name){
     struct bmp_id id;
     id.magic1 = 0x42;
     id.magic2 = 0x4D;
@@ -36,7 +35,7 @@ void write_bmp(unsigned char* data, int width, int height){
     }
 
 
-    FILE* fp = fopen("out.bmp", "w+");
+    FILE* fp = fopen(name, "w+");
     fwrite((void*)&id, 1, 2, fp);
     fwrite((void*)&header, 1, 12, fp);
     fwrite((void*)&dib_header, 1, 40, fp);

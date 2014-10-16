@@ -29,7 +29,7 @@ struct bmp_dib_header{
   uint32_t num_imp_colors;
 };
 
-void write_bmp(unsigned char* data, int width, int height);
+void write_bmp(unsigned char* data, int width, int height, const char* name);
 unsigned char* read_bmp(char* filename);
 
 #endif
