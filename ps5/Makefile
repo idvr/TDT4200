@@ -1,28 +1,33 @@
-all: clean run_all
+all: clean make_all
 
-#Whatever is currently being worked ons
-make:
+#Whatever is currently being worked on
+make: gpu_combined
 
-run_all: run_cpu run_gpu run_gpu_shared run_gpu_texture run_gpu_combined
+#Whatever is currently being worked with
+run: make
+	./run_gpu_combined
+
+make_all: cpu gpu gpu_shared gpu_texture gpu_combined
 	./run_cpu
 	./run_gpu
 	./run_gpu_shared
 	./run_gpu_texture
 	./run_gpu_combined
 
-run_cpu: clean bmp.cpp raycast_cpu.cu
-	nvcc bmp.cpp raycast_cpu.cu -lcudart -lm -o run_cpu
+cpu: clean bmp.cpp raycast_support.cu raycast_cpu.cu
+	nvcc bmp.cpp raycast_support.cu raycast_cpu.cu -lcudart -lm -o run_cpu
 
-run_gpu: clean bmp.cpp raycast_gpu.cu
-	nvcc bmp.cpp raycast_gpu.cu -lcudart -lm -o run_gpu
+gpu: clean bmp.cpp raycast_support.cu raycast_gpu.cu
+	nvcc bmp.cpp raycast_support.cu raycast_gpu.cu -lcudart -lm -o run_gpu
 
-run_gpu_shared: clean bmp.cpp raycast_gpu_shared.cu
-	nvcc bmp.cpp raycast_gpu_shared.cu -lcudart -lm -o run_gpu_shared
+gpu_shared: clean bmp.cpp raycast_support.cu raycast_gpu_shared.cu
+	nvcc bmp.cpp raycast_support.cu raycast_gpu_shared.cu -lcudart -lm -o run_gpu_shared
 
-run_gpu_texture: clean bmp.cpp raycast_gpu_texture.cu
-	nvcc bmp.cpp raycast_gpu_texture.cu -lcudart -lm -o run_gpu_texture
+gpu_texture: clean bmp.cpp raycast_support.cu raycast_gpu_texture.cu
+	nvcc bmp.cpp raycast_support.cu raycast_gpu_texture.cu -lcudart -lm -o run_gpu_texture
 
-run_gpu_combined: clean bmp.cpp raycast_gpu_combined.cu
-	nvcc bmp.cpp raycast_gpu_combined.cu -lcudart -lm -o run_gpu_combined
+gpu_combined: clean bmp.cpp raycast_support.cu raycast_gpu_combined.cu
+	nvcc bmp.cpp raycast_support.cu raycast_gpu_combined.cu -lcudart -lm -o run_gpu_combined
 
-clean: rm -f run_*
+clean:
+	rm -f run_*
