@@ -47,5 +47,5 @@ ps4/*_out.bmp
 ps4/omp
 ps4/pthreads
 ps4/serial
-ps5/raycast
+ps5/run_*
 ps5/*_out.bmp
