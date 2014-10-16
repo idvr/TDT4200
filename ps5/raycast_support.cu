@@ -86,7 +86,7 @@ void print_properties(){
         printf("Device #%d, Name: %s\n" , (i+1), p.name);
         printf("Compute capability: %d.%d\n", p.major, p.minor);
 
-        printf("Total memory: %zdGiB \nShared memory per block: %zdKiB\n", p.totalGlobalMem/(1024*1024*1024), p.sharedMemPerBlock/1024);
+        printf("Total memory: %zdMiB \nShared memory per block: %zdKiB\n", p.totalGlobalMem/(1024*1024), p.sharedMemPerBlock/1024);
 
         printf("#Threads per Warp: %d\n", p.warpSize);
 
@@ -105,6 +105,12 @@ void print_properties(){
         printf("Max Threads per Block: %d\n", p.maxThreadsPerBlock);
 
         printf("Are concurrent kernels supported?: %s\n", p.concurrentKernels ? "yes" : "no");
+
+        if (p.asyncEngineCount){
+            printf("GPU can copy %s concurrently host and device while executing a kernel\n", p.asyncEngineCount == 2 ? "both ways between " : "one way between");
+        } else{
+            printf("GPU cannot transfer data between host/device while a kernel is running\n");
+        }
 
         printf("\n\n");
     }
