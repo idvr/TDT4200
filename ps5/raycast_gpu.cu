@@ -37,6 +37,8 @@ int main(int argc, char** argv){
 
     print_properties();
 
+    printf("Done printing properties\n");
+
     unsigned char* data = create_data();
 
     /* //Serial version
