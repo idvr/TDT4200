@@ -75,7 +75,7 @@ void print_properties(){
         printf("Device #%d, Name: %s\n" , (i+1), p.name);
         printf("Compute capability: %d.%d\n", p.major, p.minor);
 
-        printf("Total memory: %zd\nShared memory per block: %zd", p.totalGlobalMem, p.sharedMemPerBlock);
+        printf("Total memory: %zdMiB \nShared memory per block: %zdKiB", p.totalGlobalMem/(1024*1024), p.sharedMemPerBlock/1024);
 
         printf("Multiprocessor (SM/SMX) count: %d\n", p.multiProcessorCount);
 
@@ -84,7 +84,7 @@ void print_properties(){
         printf("Max Grid Size:\n");
         for (int j = 0; j < 2; ++j){
             printf("%d, ", p.maxGridSize[j]);
-        }printf("%d", p.maxGridSize[2]);
+        }printf("%d\n", p.maxGridSize[2]);
 
         printf("Max Threads per Block: %d\n", p.maxThreadsPerBlock);
 
