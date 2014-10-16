@@ -66,29 +66,45 @@ float3 scale(float3 a, float b){
 void print_properties(){
     int deviceCount = 0;
     cudaGetDeviceCount(&deviceCount);
-    printf("Device count: %d\n", deviceCount);
+    printf("Device count: %d\n\n", deviceCount);
 
     cudaDeviceProp p;
     for (int i = 0; i < deviceCount; ++i){
-        cudaSetDevice(i);
-        cudaGetDeviceProperties (&p, i);
+        int cudaReturnStatus = cudaSetDevice(i);
+        if (cudaSuccess != cudaReturnStatus){
+            printf("cudaSetDevice(%d) returned error\n", i);
+            continue;
+        }
+
+        cudaReturnStatus = cudaGetDeviceProperties (&p, i);
+        if (cudaSuccess != cudaReturnStatus){
+            printf("cudaGetDeviceProperties(&p, %d) returned error\n", i);
+            continue;
+        }
+
+        //If all went well, print info:
         printf("Device #%d, Name: %s\n" , (i+1), p.name);
         printf("Compute capability: %d.%d\n", p.major, p.minor);
 
-        printf("Total memory: %zdMiB \nShared memory per block: %zdKiB", p.totalGlobalMem/(1024*1024), p.sharedMemPerBlock/1024);
+        printf("Total memory: %zdGiB \nShared memory per block: %zdKiB\n", p.totalGlobalMem/(1024*1024*1024), p.sharedMemPerBlock/1024);
+
+        printf("#Threads per Warp: %d\n", p.warpSize);
 
         printf("Multiprocessor (SM/SMX) count: %d\n", p.multiProcessorCount);
 
-        printf("Blocks per SM/SMX: %d/%d = %d\n", p.maxThreadsPerMultiProcessor, p.maxThreadsPerBlock, p.maxThreadsPerMultiProcessor/p.maxThreadsPerBlock);
+        printf("Max threads per Blocks: ");
+        for (int j = 0; j < 2; ++j){
+            printf("%d, ", p.maxThreadsDim[j]);
+        }printf("%d\n", p.maxThreadsDim[2]);
 
-        printf("Max Grid Size:\n");
+        printf("Max Grid Size: ");
         for (int j = 0; j < 2; ++j){
             printf("%d, ", p.maxGridSize[j]);
         }printf("%d\n", p.maxGridSize[2]);
 
         printf("Max Threads per Block: %d\n", p.maxThreadsPerBlock);
 
-        printf("Concurrent kernels: %d\n", p.concurrentKernels);
+        printf("Are concurrent kernels supported?: %s\n", p.concurrentKernels ? "yes" : "no");
 
         printf("\n\n");
     }
