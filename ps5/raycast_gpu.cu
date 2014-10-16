@@ -17,7 +17,6 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 }
 
 int main(int argc, char** argv){
-
     print_properties();
 
     printf("Done printing properties\n");

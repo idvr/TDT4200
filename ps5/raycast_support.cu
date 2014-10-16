@@ -69,11 +69,29 @@ void print_properties(){
     printf("Device count: %d\n", deviceCount);
 
     cudaDeviceProp p;
-    cudaSetDevice(0);
-    cudaGetDeviceProperties (&p, 0);
-    printf("Compute capability: %d.%d\n", p.major, p.minor);
-    printf("Name: %s\n" , p.name);
-    printf("\n\n");
+    for (int i = 0; i < deviceCount; ++i){
+        cudaSetDevice(i);
+        cudaGetDeviceProperties (&p, i);
+        printf("Device #%d, Name: %s\n" , (i+1), p.name);
+        printf("Compute capability: %d.%d\n", p.major, p.minor);
+
+        printf("Total memory: %zd\nShared memory per block: %zd", p.totalGlobalMem, p.sharedMemPerBlock);
+
+        printf("Multiprocessor (SM/SMX) count: %d\n", p.multiProcessorCount);
+
+        printf("Blocks per SM/SMX: %d/%d = %d\n", p.maxThreadsPerMultiProcessor, p.maxThreadsPerBlock, p.maxThreadsPerMultiProcessor/p.maxThreadsPerBlock);
+
+        printf("Max Grid Size:\n");
+        for (int j = 0; j < 2; ++j){
+            printf("%d, ", p.maxGridSize[j]);
+        }printf("%d", p.maxGridSize[2]);
+
+        printf("Max Threads per Block: %d\n", p.maxThreadsPerBlock);
+
+        printf("Concurrent kernels: %d\n", p.concurrentKernels);
+
+        printf("\n\n");
+    }
 }
 
 // Fills data with values
