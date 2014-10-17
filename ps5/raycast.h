@@ -12,8 +12,7 @@
 // image is 2D, total size is IMAGE_DIM x IMAGE_DIM
 #define IMAGE_DIM 512
 //Whether to abort when errors are found in above macro/function call
-
-#define ERROR_ABORT  0
+#define ERROR_ABORT 1
 //For error-checking Nvidia CUDA calls
 #define gpuErrorCheck(inpt) { gpuAssert((inpt), __FILE__, __LINE__, ERROR_ABORT); }
 //Function prototype
