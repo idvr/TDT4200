@@ -21,7 +21,7 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 int main(int argc, char** argv){
     float ms_time;
     int WarpsPerBlock;
-    int3 blockDim, gridDim;
+    int3 blockDim.x = 1024, blockDim.y = 128, gridDim.x = 64;
     cudaEvent_t start, end;
     print_properties();
 
@@ -34,16 +34,20 @@ int main(int argc, char** argv){
     printf("Done creating data\n");
 
     gpuErrorCheck(cudaEventCreate(&start));
+    gpuErrorCheck(cudaEventRecord(start, 0));
     unsigned char* region = grow_region_gpu(data);
     gpuErrorCheck(cudaEventCreate(&end));
+    gpuErrorCheck(cudaEventRecord(end, 0));
     gpuErrorCheck(cudaEventElapsedTime(&ms_time, start, end));
     printf("grow_region_gpu() took %f ms\n", ms_time);
 
     printf("Done creating region\n");
 
     gpuErrorCheck(cudaEventCreate(&start));
+    gpuErrorCheck(cudaEventRecord(start, 0));
     unsigned char* image = raycast_gpu(data, region);
     gpuErrorCheck(cudaEventCreate(&end));
+    gpuErrorCheck(cudaEventRecord(end, 0));
     gpuErrorCheck(cudaEventElapsedTime(&ms_time, start, end));
     printf("raycast_gpu() took %f ms\n", ms_time);
 

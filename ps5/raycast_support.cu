@@ -95,6 +95,8 @@ void print_properties(){
         printf("Total memory: %zd MiB \nShared memory per thread block in a SM/SMX: %zd KiB\n",
             p.totalGlobalMem/(1024*1024), p.sharedMemPerBlock/1024);
 
+        printf("Max #registers per Block: %d\n", p.regsPerblock);
+
         printf("Max threads per Blocks: ");
         for (int j = 0; j < 2; ++j){
             printf("%d, ", p.maxThreadsDim[j]);
