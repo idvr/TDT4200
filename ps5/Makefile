@@ -32,4 +32,4 @@ gpu_combined: clean bmp.cpp raycast_support.cu raycast_gpu_combined.cu
 	nvcc bmp.cpp raycast_support.cu raycast_gpu_combined.cu -lcudart -g -G -use_fast_math -lm -o run_gpu_combined
 
 clean:
-	rm -f run_*
+	rm -f run_* *.o

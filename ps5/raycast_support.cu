@@ -86,14 +86,14 @@ void print_properties(){
         printf("Device #%d, Name: %s\n" , (i+1), p.name);
         printf("Compute capability: %d.%d\n", p.major, p.minor);
 
-        printf("Total memory: %zd MiB \nShared memory per thread block in a SM/SMX: %zd KiB\n",
-            p.totalGlobalMem/(1024*1024), p.sharedMemPerBlock/1024);
-
         printf("#Threads per Warp: %d\n", p.warpSize);
 
         printf("Multiprocessor (SM/SMX) count: %d\n", p.multiProcessorCount);
 
         printf("Max #threads per SM/SMX: %d\n", p.maxThreadsPerMultiProcessor);
+
+        printf("Total memory: %zd MiB \nShared memory per thread block in a SM/SMX: %zd KiB\n",
+            p.totalGlobalMem/(1024*1024), p.sharedMemPerBlock/1024);
 
         printf("Max threads per Blocks: ");
         for (int j = 0; j < 2; ++j){
@@ -117,7 +117,7 @@ void print_properties(){
             printf("Device cannot transfer data between host/device while a kernel is running\n");
         }
 
-        printf("\n\n");
+        printf("\n");
     }
 }
 
@@ -158,7 +158,7 @@ unsigned char* create_data(){
     for(int i = 0; i < DATA_DIM; i++){
         for(int j = 0; j < DATA_DIM; j++){
             for(int k = 0; k < DATA_DIM; k++){
-                data[i*DATA_DIM*DATA_DIM + j*DATA_DIM+ k]= func(k,j,i);
+                data[i*DATA_DIM*DATA_DIM + j*DATA_DIM + k]= func(k,j,i);
             }
         }
     }
@@ -216,7 +216,6 @@ float value_at(float3 pos, unsigned char* data){
 
     float c0 = rz*b0 + (1-rz)*b1;
 
-
     return c0;
 }
 
@@ -227,4 +226,13 @@ int similar(unsigned char* data, int3 a, int3 b){
 
     int i = abs(va-vb) < 1;
     return i;
+}
+
+void gpuAssert(cudaError_t code, const char *file, int line, int abort){
+   if (code != cudaSuccess){
+      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      if(abort){
+        exit(code);
+      }
+   }
 }
