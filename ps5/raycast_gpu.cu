@@ -1,8 +1,34 @@
 #include "raycast.h"
 
 unsigned char* grow_region_gpu(unsigned char* data){
+    int dataSize = DATA_DIM*DATA_DIM*DATA_DIM, finished = 0;
+    cudaEvent_t start, end;
+    unsigned char* cudaImage, cudaRegion, region = malloc(sizeof(unsigned char)*dataSize);
+    int3 blockDim.x = 512, gridDim.x = 512, gridDim.y = 512;
 
-    return NULL;
+    //Malloc image on cuda device
+    gEC(cudaMalloc(&cudaImage, sizeof(unsigned char)*dataSize));
+    //Malloc region on cuda device
+    gEC(cudaMalloc(&cudaRegion, sizeof(unsigned char)*dataSize));
+
+    //Copy image over to device
+    gEC(cudaMemcpy(cudaImage, data, sizeof(unsigned char)*dataSize, cudaMemCpyHostToDevice));
+
+    gpuErrorCheck(cudaEventCreate(&start));
+    gpuErrorCheck(cudaEventRecord(start, 0));
+
+    while(!finished){
+        region = region_grow_kernel<<<gridDim, blockDim>>>(data, region, finished);
+    }
+
+    gpuErrorCheck(cudaEventCreate(&end));
+    gpuErrorCheck(cudaEventRecord(end, 0));
+    gpuErrorCheck(cudaEventElapsedTime(&ms_time, start, end));
+
+    //Copy region from device
+    gEC(cudaMemcpy(region, cudaRegion, sizeof(unsigned char)*dataSize, cudaMemCpyDeviceToHost));
+
+    return region;
 }
 
 unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
@@ -21,7 +47,6 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 int main(int argc, char** argv){
     float ms_time;
     int WarpsPerBlock;
-    int3 blockDim.x = 1024, blockDim.y = 128, gridDim.x = 64;
     cudaEvent_t start, end;
     print_properties();
 
@@ -33,12 +58,8 @@ int main(int argc, char** argv){
 
     printf("Done creating data\n");
 
-    gpuErrorCheck(cudaEventCreate(&start));
-    gpuErrorCheck(cudaEventRecord(start, 0));
+
     unsigned char* region = grow_region_gpu(data);
-    gpuErrorCheck(cudaEventCreate(&end));
-    gpuErrorCheck(cudaEventRecord(end, 0));
-    gpuErrorCheck(cudaEventElapsedTime(&ms_time, start, end));
     printf("grow_region_gpu() took %f ms\n", ms_time);
 
     printf("Done creating region\n");
