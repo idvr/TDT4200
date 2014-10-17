@@ -20,8 +20,6 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 
 int main(int argc, char** argv){
     float ms_time;
-    int WarpsPerBlock;
-    int3 blockDim.x = 1024, blockDim.y = 128, gridDim.x = 64;
     cudaEvent_t start, end;
     print_properties();
 
