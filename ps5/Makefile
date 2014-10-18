@@ -6,15 +6,33 @@
 .PHONY: install
 
 #Whatever is currently being worked with
-run: gpu
-	./run_gpu
+target:= gpu #Edit this as project progresses
 
-all: clean cpu gpu gpu_shared gpu_texture gpu_combined
+run_local: $(target)
+	optirun ./run_$(target)
+
+#Shorthand for above
+rl: run_local
+
+run_school: $(target)
+	./run_$(target)
+
+#Shorthand for above
+rs: run_school
+
+all_school: clean cpu gpu gpu_shared gpu_texture gpu_combined
 	./run_cpu
 	./run_gpu
 	./run_gpu_shared
 	./run_gpu_texture
 	./run_gpu_combined
+
+all_local: clean cpu gpu gpu_shared gpu_texture gpu_combined
+	optirun ./run_cpu
+	optirun ./run_gpu
+	optirun ./run_gpu_shared
+	optirun ./run_gpu_texture
+	optirun ./run_gpu_combined
 
 cpu: clean bmp.cpp raycast_support.cu raycast_cpu.cu
 	nvcc bmp.cpp raycast_support.cu raycast_cpu.cu -lcudart -g -G -use_fast_math -lm -o run_cpu

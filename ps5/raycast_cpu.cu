@@ -96,8 +96,6 @@ unsigned char* grow_region_serial(unsigned char* data){
 
 int main(int argc, char** argv){
 
-    print_properties();
-
     unsigned char* data = create_data();
 
     unsigned char* region = grow_region_serial(data);
