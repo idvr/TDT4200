@@ -7,6 +7,9 @@
 
 #include "bmp.h"
 
+#define NEW_VOX 1.0f
+#define VISITED 0.5f
+
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
 #define DATA_SIZE (512*512*512)
@@ -36,10 +39,14 @@ float3 cross(float3 a, float3 b);
 float3 normalize(float3 v);
 float3 add(float3 a, float3 b);
 float3 scale(float3 a, float b);
+int inside(int3 pos);
 int inside(float3 post);
-int inside(int3 post);
-//NOTE ARGUMENT ORDER FOR BELOW FUNCTION
 int index(int z, int y, int x);
+
+//Functions accessible by kernels
+/*__device__ int gpu_index(int3 pos);
+__device__ int gpu_inside(int3 pos);
+__device__ int gpu_similar(unsigned char* data, int3 a, int3 b);*/
 
 //Print properties of Nvidia CUDA card
 void print_properties();

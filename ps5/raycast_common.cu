@@ -185,6 +185,11 @@ int inside(int3 pos){
     return x && y && z;
 }
 
+int index(int3 pos){
+    return pos.z*DATA_DIM*DATA_DIM
+            + pos.y*DATA_DIM + pos.x;
+}
+
 // Indexing function (note the argument order)
 int index(int z, int y, int x){
     return z * DATA_DIM*DATA_DIM + y*DATA_DIM + x;
@@ -223,8 +228,8 @@ float value_at(float3 pos, unsigned char* data){
 
 // Check if two values are similar, threshold can be changed.
 int similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[a.z * DATA_DIM*DATA_DIM + a.y*DATA_DIM + a.x];
-    unsigned char vb = data[b.z * DATA_DIM*DATA_DIM + b.y*DATA_DIM + b.x];
+    unsigned char va = data[index(a)];
+    unsigned char vb = data[index(b)];
 
     int i = abs(va-vb) < 1;
     return i;
@@ -249,3 +254,23 @@ float getCudaEventTime(cudaEvent_t start, cudaEvent_t end){
     gEC(cudaEventElapsedTime(&result, start, end));
     return result;
 }
+
+//################# Functions accessible by kernels ##############
+/*__device__ int gpu_index(int3 pos){
+    return pos.z*DATA_DIM*DATA_DIM
+            + pos.y*DATA_DIM + pos.x;
+}
+
+__device__ int gpu_inside(int3 pos){
+    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
+    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
+    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+    return x && y && z;
+}
+
+__device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
+    unsigned char va = data[gpu_index(a)];
+    unsigned char vb = data[gpu_index(b)];
+    return (abs(va-vb) < 1);
+}*/
+

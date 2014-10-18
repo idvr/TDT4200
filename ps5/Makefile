@@ -8,6 +8,8 @@
 #Whatever is currently being worked with
 target:= gpu #Edit this as project progresses
 
+all: cpu gpu gpu_shared gpu_texture gpu_combined
+
 run_local: $(target)
 	optirun ./run_$(target)
 #Shorthand for above
@@ -18,14 +20,14 @@ run_school: $(target)
 #Shorthand for above
 rs: run_school
 
-all_school: clean cpu gpu gpu_shared gpu_texture gpu_combined
+all_school: clean all
 	./run_cpu
 	./run_gpu
 	./run_gpu_shared
 	./run_gpu_texture
 	./run_gpu_combined
 
-all_local: clean cpu gpu gpu_shared gpu_texture gpu_combined
+all_local: clean all
 	optirun ./run_cpu
 	optirun ./run_gpu
 	optirun ./run_gpu_shared
