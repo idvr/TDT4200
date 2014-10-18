@@ -17,8 +17,8 @@
 #define ERROR_ABORT 1
 //For error-checking Nvidia CUDA calls
 #define gEC(inpt) {gpuErrorCheck(inpt)}
-#define gpuErrorCheck(inpt) { gpuAssert((inpt), __FILE__, __LINE__, ERROR_ABORT); }
-//Function prototype
+#define gpuErrorCheck(inpt) {gpuAssert((inpt), __FILE__, __LINE__, ERROR_ABORT);}
+//Function prototype for the above two defines
 void gpuAssert(cudaError_t code, const char *file, int line, int abort);
 
 // Stack for the serial region growing
@@ -55,5 +55,7 @@ float value_at(float3 post, unsigned char* data);
 //Common function calls for exercise
 unsigned char* grow_region_serial(unsigned char* data, unsigned char* region);
 unsigned char* raycast_serial(unsigned char* data, unsigned char* region);
+void createCudaEvent(cudaEvent_t* cudaEvent);
+float getCudaEventTime(cudaEvent_t start, cudaEvent_t end);
 
 #endif

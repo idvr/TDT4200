@@ -232,9 +232,20 @@ int similar(unsigned char* data, int3 a, int3 b){
 
 void gpuAssert(cudaError_t code, const char *file, int line, int abort){
    if (code != cudaSuccess){
-      fprintf(stderr,"GPUassert: %s %s %d\n", cudaGetErrorString(code), file, line);
+      fprintf(stderr,"GPUassert: %s, @%s:%d\n", cudaGetErrorString(code), file, line);
       if(abort){
         exit(code);
       }
    }
+}
+
+void createCudaEvent(cudaEvent_t* event){
+    gEC(cudaEventCreate(event)); gEC(cudaEventRecord(*event, 0));
+    gEC(cudaEventSynchronize(*event)); return;
+}
+
+float getCudaEventTime(cudaEvent_t start, cudaEvent_t end){
+    float result = -1;
+    gEC(cudaEventElapsedTime(&result, start, end));
+    return result;
 }

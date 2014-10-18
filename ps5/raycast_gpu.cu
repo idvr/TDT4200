@@ -1,7 +1,8 @@
 #include "raycast.h"
 
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* finished){
-    //blah
+    *finished = 1;
+    return;
 }
 
 __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsigned char* region){
@@ -9,34 +10,38 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 }
 
 unsigned char* grow_region_gpu(unsigned char* data){
-    int finished = 0; float ms_time = -1.0;
-    cudaEvent_t start, end;
-    unsigned char* cudaImage, *cudaRegion,
-        *region = (unsigned char*) malloc(sizeof(unsigned char)*IMAGE_SIZE);
+    int finished = 0;
     dim3 blockDim, gridDim;
+    cudaEvent_t start, end;
+    unsigned char* cudaImage, *cudaRegion, *region;
     blockDim.x = 512, gridDim.x = 512, gridDim.y = 512;
+    region = (unsigned char*) calloc(IMAGE_SIZE, sizeof(unsigned char));
 
     //Malloc image on cuda device
     gEC(cudaMalloc(&cudaImage, sizeof(unsigned char)*IMAGE_SIZE));
     //Malloc region on cuda device
     gEC(cudaMalloc(&cudaRegion, sizeof(unsigned char)*IMAGE_SIZE));
 
-    //Copy image over to device
+    //Copy image and region over to device
+    createCudaEvent(&start);
     gEC(cudaMemcpy(cudaImage, data, sizeof(unsigned char)*IMAGE_SIZE, cudaMemcpyHostToDevice));
+    gEC(cudaMemcpy(cudaRegion, region, sizeof(unsigned char)*IMAGE_SIZE, cudaMemcpyHostToDevice));
+    createCudaEvent(&end);
+    printf("Copying image and region to device took %f ms\n",
+        getCudaEventTime(start, end));
 
-    gpuErrorCheck(cudaEventCreate(&start));
-    gpuErrorCheck(cudaEventRecord(start, 0));
 
-    while(!finished){
-        region_grow_kernel<<<gridDim, blockDim>>>(data, region, &finished);
-    }
+    //while(!finished){
+        //region_grow_kernel<<<gridDim, blockDim>>>(data, region, &finished);
+    //}
 
-    gpuErrorCheck(cudaEventCreate(&end));
-    gpuErrorCheck(cudaEventRecord(end, 0));
-    gpuErrorCheck(cudaEventElapsedTime(&ms_time, start, end));
+
 
     //Copy region from device
+    createCudaEvent(&start);
     gEC(cudaMemcpy(region, cudaRegion, sizeof(unsigned char)*IMAGE_SIZE, cudaMemcpyDeviceToHost));
+    createCudaEvent(&end);
+    printf("Copying region from device took %f ms\n", getCudaEventTime(start, end));
 
     return region;
 }
@@ -47,8 +52,7 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
 }
 
 int main(int argc, char** argv){
-    float ms_time;
-    cudaEvent_t start, end;
+    //float ms_time;
     print_properties();
 
     printf("Done printing properties\n");
@@ -61,21 +65,16 @@ int main(int argc, char** argv){
 
 
     unsigned char* region = grow_region_gpu(data);
-    printf("grow_region_gpu() took %f ms\n", ms_time);
+    //printf("grow_region_gpu() took %f ms\n", ms_time);
 
     printf("Done creating region\n");
 
-    gpuErrorCheck(cudaEventCreate(&start));
-    gpuErrorCheck(cudaEventRecord(start, 0));
     unsigned char* image = raycast_gpu(data, region);
-    gpuErrorCheck(cudaEventCreate(&end));
-    gpuErrorCheck(cudaEventRecord(end, 0));
-    gpuErrorCheck(cudaEventElapsedTime(&ms_time, start, end));
-    printf("raycast_gpu() took %f ms\n", ms_time);
+    /*printf("raycast_gpu() took %f ms\n", ms_time);*/
 
     printf("Done creating image\n");
 
-    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
+    //write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
 
     printf("Done with program\n");
     return 0;
