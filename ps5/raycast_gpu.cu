@@ -10,9 +10,9 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 }
 
 unsigned char* grow_region_gpu(unsigned char* data){
-    int finished = 0;
-    dim3 blockDim, gridDim;
+    int finished = 0, *gpu_finished;
     cudaEvent_t start, end;
+    dim3 blockDim, gridDim;
     unsigned char* cudaImage, *cudaRegion, *region;
     blockDim.x = 512, gridDim.x = 512, gridDim.y = 512;
     region = (unsigned char*) calloc(IMAGE_SIZE, sizeof(unsigned char));
@@ -21,6 +21,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     gEC(cudaMalloc(&cudaImage, sizeof(unsigned char)*IMAGE_SIZE));
     //Malloc region on cuda device
     gEC(cudaMalloc(&cudaRegion, sizeof(unsigned char)*IMAGE_SIZE));
+    gEC(cudaMalloc(&gpu_finished, sizeof(int)));
 
     //Copy image and region over to device
     createCudaEvent(&start);
@@ -31,9 +32,13 @@ unsigned char* grow_region_gpu(unsigned char* data){
         getCudaEventTime(start, end));
 
 
-    //while(!finished){
-        //region_grow_kernel<<<gridDim, blockDim>>>(data, region, &finished);
-    //}
+    while(!finished){
+        printf("Entered while-loop\n");
+        gEC(cudaMemcpy(gpu_finished, &finished, sizeof(int), cudaMemcpyHostToDevice));
+        region_grow_kernel<<<gridDim, blockDim>>>(data, region, gpu_finished);
+        gEC(cudaMemcpy(&finished, gpu_finished, sizeof(int), cudaMemcpyDeviceToHost));
+    }
+
 
 
 
