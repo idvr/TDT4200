@@ -10,13 +10,11 @@ target:= gpu #Edit this as project progresses
 
 run_local: $(target)
 	optirun ./run_$(target)
-
 #Shorthand for above
 rl: run_local
 
 run_school: $(target)
 	./run_$(target)
-
 #Shorthand for above
 rs: run_school
 
@@ -34,20 +32,20 @@ all_local: clean cpu gpu gpu_shared gpu_texture gpu_combined
 	optirun ./run_gpu_texture
 	optirun ./run_gpu_combined
 
-cpu: clean bmp.cpp raycast_support.cu raycast_cpu.cu
-	nvcc bmp.cpp raycast_support.cu raycast_cpu.cu -lcudart -g -G -use_fast_math -lm -o run_cpu
+cpu: clean bmp.cpp raycast_common.cu raycast_cpu.cu
+	nvcc bmp.cpp raycast_common.cu raycast_cpu.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_cpu
 
-gpu: clean bmp.cpp raycast_support.cu raycast_gpu.cu
-	nvcc bmp.cpp raycast_support.cu raycast_gpu.cu -lcudart -g -G -use_fast_math -lm -o run_gpu
+gpu: clean bmp.cpp raycast_common.cu raycast_gpu.cu
+	nvcc bmp.cpp raycast_common.cu raycast_gpu.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu
 
-gpu_shared: clean bmp.cpp raycast_support.cu raycast_gpu_shared.cu
-	nvcc bmp.cpp raycast_support.cu raycast_gpu_shared.cu -lcudart -g -G -use_fast_math -lm -o run_gpu_shared
+gpu_shared: clean bmp.cpp raycast_common.cu raycast_gpu_shared.cu
+	nvcc bmp.cpp raycast_common.cu raycast_gpu_shared.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_shared
 
-gpu_texture: clean bmp.cpp raycast_support.cu raycast_gpu_texture.cu
-	nvcc bmp.cpp raycast_support.cu raycast_gpu_texture.cu -lcudart -g -G -use_fast_math -lm -o run_gpu_texture
+gpu_texture: clean bmp.cpp raycast_common.cu raycast_gpu_texture.cu
+	nvcc bmp.cpp raycast_common.cu raycast_gpu_texture.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_texture
 
-gpu_combined: clean bmp.cpp raycast_support.cu raycast_gpu_combined.cu
-	nvcc bmp.cpp raycast_support.cu raycast_gpu_combined.cu -lcudart -g -G -use_fast_math -lm -o run_gpu_combined
+gpu_combined: clean bmp.cpp raycast_common.cu raycast_gpu_combined.cu
+	nvcc bmp.cpp raycast_common.cu raycast_gpu_combined.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_combined
 
 clean:
 	rm -f run_* *.o
