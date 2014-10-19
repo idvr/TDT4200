@@ -45,7 +45,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char* cudaImage, *cudaRegion, *region;
     blockDim.x = 512, gridDim.x = 512, gridDim.y = 512;
-    region = (unsigned char*) calloc(IMAGE_SIZE, sizeof(unsigned char));
+    region = (unsigned char*) calloc(DATA_SIZE, sizeof(unsigned char));
 
     push(stack, seed);
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
@@ -101,11 +101,11 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
 
 int main(int argc, char** argv){
     //float ms_time;
-    print_properties();
+    /*print_properties();
 
     printf("Done printing properties\n");
 
-    printf("size of data: %zd\n", sizeof(unsigned char)*DATA_DIM*DATA_DIM*DATA_DIM/(1024*1024));
+    printf("size of data: %zd\n", sizeof(unsigned char)*DATA_DIM*DATA_DIM*DATA_DIM/(1024*1024));*/
 
     unsigned char* data = create_data();
 
