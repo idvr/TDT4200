@@ -2,26 +2,30 @@
 
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
     *changed = 0;
-    int3 pixel = {
-        .x = threadIdx.x,
-        .y = blockIdx.x*IMAGE_DIM,
-        .z = blockIdx.y*IMAGE_SIZE};
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
+    int3 pixel = {.x = threadIdx.x,
+        .y = blockIdx.x*DATA_DIM,
+        .z = blockIdx.y*DATA_SIZE};
     int tid = pixel.z + pixel.y + pixel.x;
 
-    if (/*50 == pixel.x && 300 == (pixel.y&pixel.z)*/
-        (50*300*300) == tid){
+    if(pixel.y == 0 && pixel.x == 0 && pixel.z == 0){
+        int x = 2147483648/2;
+        printf("Value: 1073741824\n");
+        printf("Ints : %d\n", x);
+    }
+
+    /*if (50 == pixel.x && 300 == (pixel.y&pixel.z)){
         printf("\nI EXIST!!!\n\n");
     }
 
     if (0 > tid || (512*512*512) <= tid){
         printf("We have tid out of boundary: %d\n", tid);
     }
-    //printf("NEW_VOX: %u\n", VISITED);
+    printf("tid: %d: .x = %d, .y = %d, .z = %d\n", tid, pixel.x, pixel.y, pixel.z);*/
 
-    if(NEW_VOX == region[tid]){
+    /*if(NEW_VOX == region[tid]){
         printf("Entered first if!\n");
         printf("tid: .x=%d, .y=%d, .z=%d\n", pixel.x, pixel.y, pixel.z);
         int3 pos;
@@ -45,10 +49,10 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
                 atomicAdd(changed, 1);
             }
         }
-    }
+    }*/
 
     //__syncthreads();
-    //*changed = 1;
+    *changed = 1;
     return;
 }
 
@@ -84,12 +88,11 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("Copying image and region to device took %f ms\n",
         getCudaEventTime(start, end));
 
-    int cntr = 0;
     for (int i = 0; (i < 3) && (!changed); ++i){
         printf("\nEntered while-loop\n");
         gEC(cudaMemcpy(gpu_changed, &changed, sizeof(int), cudaMemcpyHostToDevice));
         printf("Finished first while-loop memcpy!\n");
-        //region_grow_kernel<<<gridDim, blockDim>>>(data, region, gpu_changed);
+        region_grow_kernel<<<gridDim, blockDim>>>(data, region, gpu_changed);
         printf("Finished kernel call!\n");
 
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
