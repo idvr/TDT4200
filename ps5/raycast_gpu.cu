@@ -85,8 +85,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
         getCudaEventTime(start, end));
 
     int cntr = 0;
-    //while(!changed || 9 < cntr){
-        cntr += 1;
+    for (int i = 0; (i < 3) && (!changed); ++i){
         printf("\nEntered while-loop\n");
         gEC(cudaMemcpy(gpu_changed, &changed, sizeof(int), cudaMemcpyHostToDevice));
         printf("Finished first while-loop memcpy!\n");
@@ -94,8 +93,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
         printf("Finished kernel call!\n");
 
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-    //}
-
+    }
 
     //Copy region from device
     createCudaEvent(&start);
