@@ -49,3 +49,4 @@ ps4/pthreads
 ps4/serial
 ps5/run_*
 ps5/*_out.bmp
+ps5/cuda-memcheck.*
