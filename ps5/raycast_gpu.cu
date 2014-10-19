@@ -1,14 +1,29 @@
 #include "raycast.h"
 
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
-    int dx[6] = {-1,1,0,0,0,0};
-    int dy[6] = {0,0,-1,1,0,0}; int dz[6] = {0,0,0,0,-1,1};
-    int3 pixel = {.z = blockIdx.y*IMAGE_SIZE,
-        .y = blockIdx.x*IMAGE_DIM, .x = threadIdx.x};
-    int tid = pixel.z*DATA_DIM*DATA_DIM + pixel.y*DATA_DIM + pixel.x;
+    *changed = 0;
+    int3 pixel = {
+        .x = threadIdx.x,
+        .y = blockIdx.x*IMAGE_DIM,
+        .z = blockIdx.y*IMAGE_SIZE};
+    const int dx[6] = {-1,1,0,0,0,0};
+    const int dy[6] = {0,0,-1,1,0,0};
+    const int dz[6] = {0,0,0,0,-1,1};
+    int tid = pixel.z + pixel.y + pixel.x;
+
+    if (/*50 == pixel.x && 300 == (pixel.y&pixel.z)*/
+        (50*300*300) == tid){
+        printf("\nI EXIST!!!\n\n");
+    }
+
+    if (0 > tid || (512*512*512) <= tid){
+        printf("We have tid out of boundary: %d\n", tid);
+    }
+    //printf("NEW_VOX: %u\n", VISITED);
 
     if(NEW_VOX == region[tid]){
         printf("Entered first if!\n");
+        printf("tid: .x=%d, .y=%d, .z=%d\n", pixel.x, pixel.y, pixel.z);
         int3 pos;
         region[tid] = VISITED;
         for (int i = 0; i < 6; ++i){
@@ -23,8 +38,8 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
                 //Check that it's not already been "discovered"
                 !region[tid] &&
                 //Check that the corresponding color values actually match
-            (abs(data[tid] -
-            data[pos.z*DATA_DIM*DATA_DIM + pos.y*DATA_DIM + pos.x]) < 1)){
+                (abs(data[tid] - data[pos.z + pos.y + pos.x]) < 1)){
+                //then
                 printf("Found neighbour!\n");
                 region[tid] = NEW_VOX;
                 atomicAdd(changed, 1);
@@ -43,7 +58,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     dim3 blockDim, gridDim;
     stack_t* stack = new_stack();
     int3 seed = {.x = 50, .y = 300, .z = 300};
-    unsigned char* cudaImage, *cudaRegion, *region;
+    unsigned char *cudaImage, *cudaRegion, *region;
     blockDim.x = 512, gridDim.x = 512, gridDim.y = 512;
     region = (unsigned char*) calloc(DATA_SIZE, sizeof(unsigned char));
 
@@ -68,16 +83,16 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("Copying image and region to device took %f ms\n",
         getCudaEventTime(start, end));
 
-
-
-    while(!finished){
-        printf("Entered while-loop\n");
+    int cntr = 0;
+    //while(!finished || 9 < cntr){
+        cntr += 1;
+        printf("\nEntered while-loop\n");
         gEC(cudaMemcpy(gpu_finished, &finished, sizeof(int), cudaMemcpyHostToDevice));
-
+        printf("Finished first while-loop memcpy!\n");
         region_grow_kernel<<<gridDim, blockDim>>>(data, region, gpu_finished);
-
+        printf("Finished kernel call!\n");
         gEC(cudaMemcpy(&finished, gpu_finished, sizeof(int), cudaMemcpyDeviceToHost));
-    }
+    //}
 
 
     //Copy region from device

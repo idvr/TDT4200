@@ -7,8 +7,8 @@
 
 #include "bmp.h"
 
-#define NEW_VOX 1.0f
-#define VISITED 0.5f
+#define NEW_VOX 2
+#define VISITED 1
 
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
@@ -17,7 +17,7 @@
 #define IMAGE_DIM 512
 #define IMAGE_SIZE (512*512)
 //Whether to abort when errors are found in above macro/function call
-#define ERROR_ABORT 1
+#define ERROR_ABORT 0
 //For error-checking Nvidia CUDA calls
 #define gEC(inpt) {gpuErrorCheck(inpt)}
 #define gpuErrorCheck(inpt) {gpuAssert((inpt), __FILE__, __LINE__, ERROR_ABORT);}
