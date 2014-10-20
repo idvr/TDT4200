@@ -10,6 +10,9 @@ target:= gpu #Edit this as project progresses
 
 all: cpu gpu gpu_shared gpu_texture gpu_combined
 
+memcheck: $(target)
+	cuda-memcheck optirun ./run_$(target)
+
 run_local: $(target)
 	optirun ./run_$(target)
 #Shorthand for above

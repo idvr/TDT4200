@@ -44,12 +44,19 @@ int inside(float3 post);
 int index(int z, int y, int x);
 
 //Functions accessible by kernels
-/*__device__ int gpu_index(int3 pos);
+__device__ int gpu_index(int3 pos);
 __device__ int gpu_inside(int3 pos);
-__device__ int gpu_similar(unsigned char* data, int3 a, int3 b);*/
+__device__ int getGlobalIdx_3D_3D();
+__device__ int gpu_similar(unsigned char* data, int3 a, int3 b);
 
-//Print properties of Nvidia CUDA card
+//Print/get properties of Nvidia CUDA card
 void print_properties();
+int getAmountOfSMs(int device);
+int getThreadsPerBlock(int device);
+int getMaxThreadsPerSM(int device);
+dim3** getGridAndBlockSize(int device);
+int getBlocksPerSM(int device, int dim);
+void setCudaDevice(cudaDeviceProp* p, int device);
 
 //Generate input data for exercise
 unsigned char func(int x, int y, int z);

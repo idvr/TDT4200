@@ -62,6 +62,40 @@ float3 scale(float3 a, float b){
     return a;
 }
 
+void setCudaDevice(cudaDeviceProp* p, int device){
+    gEC(cudaSetDevice(device));
+    gEC(cudaGetDeviceProperties(p, device));
+    gEC(cudaDeviceSynchronize());
+}
+
+int getAmountOfSMs(int device){
+    cudaDeviceProp p;
+    setCudaDevice(&p, device);
+    return p.multiProcessorCount;
+}
+
+int getThreadsPerBlock(int device){
+    cudaDeviceProp p;
+    setCudaDevice(&p, device);
+    return p.maxThreadsDim[0];
+}
+
+int getBlocksPerSM(int device, int dim){
+    if(2 < dim){
+        fprintf(stderr, "Not enough block dimensions in SM!! dim: %d\n", dim);
+        exit(-1);
+    }
+    cudaDeviceProp p;
+    setCudaDevice(&p, device);
+    return p.maxGridSize[dim];
+}
+
+int getMaxThreadsPerSM(int device){
+    cudaDeviceProp p;
+    setCudaDevice(&p, device);
+    return p.maxThreadsPerMultiProcessor;
+}
+
 // Prints CUDA device properties
 void print_properties(){
     int deviceCount = 0;
@@ -255,10 +289,43 @@ float getCudaEventTime(cudaEvent_t start, cudaEvent_t end){
     return result;
 }
 
+dim3** getGridAndBlockSize(int device){
+    dim3 grid, block;
+    int SMs = getAmountOfSMs(device),
+        totThreads = getMaxThreadsPerSM(device)*SMs,
+        totBlocks = totThreads/512; //Ref amount threads per block below
+    dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
+    sizes[0] = (dim3*) malloc(sizeof(dim3));
+    sizes[1] = (dim3*) malloc(sizeof(dim3));
+    printf("Done assigning to size!\n");
+
+    //Hardcoding blockdim values (8^3 = 512 = DATA_DIM)
+    block.x = 8; grid.x = 1;
+    block.y = 8; grid.y = 1;
+    block.z = 8; grid.z = 1;
+
+    while(8 <= totBlocks){
+        grid.x += 2;
+        grid.y += 2;
+        grid.z += 2;
+        totBlocks /= 8;
+    }
+    /*if (totBlocks){
+        printf("\t\t%d threads left, making %d blocks\n", totBlocks*512, totBlocks);
+    }*/
+    printf("Done assigning grid and block values!\n");
+
+    printf("Before memcpy's!\n");
+    memcpy(sizes[0], &grid, sizeof(dim3));
+    memcpy(sizes[1], &block, sizeof(dim3));
+    printf("Done with memcpy!\n");
+    return sizes;
+}
+
 //################# Functions accessible by kernels ##############
-/*__device__ int gpu_index(int3 pos){
-    return pos.z*DATA_DIM*DATA_DIM
-            + pos.y*DATA_DIM + pos.x;
+__device__ int gpu_index(int3 pos){
+    return pos.z*IMAGE_SIZE
+        + pos.y*DATA_DIM + pos.x;
 }
 
 __device__ int gpu_inside(int3 pos){
@@ -268,9 +335,18 @@ __device__ int gpu_inside(int3 pos){
     return x && y && z;
 }
 
+__device__ int getGlobalIdx_3D_3D(){
+    int blockId = blockIdx.x + (blockIdx.y*gridDim.x)
+                    + (blockIdx.z*gridDim.x*gridDim.y);
+    int threadId = threadIdx.x + (threadIdx.y*blockDim.x)
+                    + (threadIdx.z*blockDim.x*blockDim.y)
+                    + blockId*(blockDim.x*blockDim.y*blockDim.z);
+    return threadId;
+}
+
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
     unsigned char va = data[gpu_index(a)];
     unsigned char vb = data[gpu_index(b)];
     return (abs(va-vb) < 1);
-}*/
+}
 

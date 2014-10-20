@@ -36,13 +36,11 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
             pos.y += dy[i];
             pos.z += dz[i];
             if (//Check that pos pixel is inside image/region
-                (((pos.x >= 0 && pos.x < DATA_DIM-1) &&
-                (pos.y >= 0 && pos.y < DATA_DIM-1) &&
-                (pos.z >= 0 && pos.z < DATA_DIM-1))) &&
+                (gpu_inside(pos) &&
                 //Check that it's not already been "discovered"
                 (!region[tid]) &&
                 //Check that the corresponding color values actually match
-                (abs(data[tid] - data[pos.z + pos.y + pos.x]) < 1)){
+                (abs(data[tid] - data[gpu_index(pos)]) < 1)){
                 //then
                 printf("Found neighbour!\n");
                 region[tid] = NEW_VOX;
@@ -57,26 +55,22 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
 }
 
 unsigned char* grow_region_gpu(unsigned char* data){
-    printf("Entered grow_region_gpu!\n");
-    int changed = 0, *gpu_changed;
+    printf("\nEntered grow_region_gpu!\n");
+
     cudaEvent_t start, end;
-    dim3 blockDim, gridDim;
-    stack_t* stack = new_stack();
+    dim3 **sizes = getGridAndBlockSize(0);
+    int changed = 1, *gpu_changed, rounds = 1;
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaImage, *cudaRegion, *region;
-    blockDim.x = 512, gridDim.x = 512, gridDim.y = 512;
     region = (unsigned char*) calloc(DATA_SIZE, sizeof(unsigned char));
-
-    push(stack, seed);
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
+    printf("Done instantiating variables...\n");
 
-    printf("Done preparing variables!\n");
-
+    gEC(cudaMalloc(&gpu_changed, sizeof(int)));
     //Malloc image on cuda device
     gEC(cudaMalloc(&cudaImage, sizeof(unsigned char)*DATA_SIZE));
     //Malloc region on cuda device
     gEC(cudaMalloc(&cudaRegion, sizeof(unsigned char)*DATA_SIZE));
-    gEC(cudaMalloc(&gpu_changed, sizeof(int)));
 
     printf("Done mallocing on CUDA device!\n");
 
@@ -88,21 +82,29 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("Copying image and region to device took %f ms\n",
         getCudaEventTime(start, end));
 
-    for (int i = 0; (i < 3) && (!changed); ++i){
-        printf("\nEntered while-loop\n");
-        gEC(cudaMemcpy(gpu_changed, &changed, sizeof(int), cudaMemcpyHostToDevice));
-        printf("Finished first while-loop memcpy!\n");
-        region_grow_kernel<<<gridDim, blockDim>>>(data, region, gpu_changed);
-        printf("Finished kernel call!\n");
+    printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
+    printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
 
-        gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
+    int roundsSize = DATA_SIZE/rounds;
+    for (int i = 0; (i < 3)/* && (changed)*/; ++i){
+        printf("\nEntered #%d kernel outer-loop\n", i);
+        for (int j = 0; j < rounds; ++j){
+            gEC(cudaMemcpy(gpu_changed, &changed, sizeof(int), cudaMemcpyHostToDevice));
+            printf("Finished changed memcpy to device!\n");
+            int tmp = changed;
+            //region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&cudaImage[roundsSize*j], &cudaRegion[roundsSize*j], gpu_changed);
+            gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
+            tmp += changed;
+            changed = tmp;
+        }
+        printf("Finished iteration %d of kernel outer-loop!\n", i);
     }
 
     //Copy region from device
     createCudaEvent(&start);
     gEC(cudaMemcpy(region, cudaRegion, sizeof(unsigned char)*DATA_SIZE, cudaMemcpyDeviceToHost));
     createCudaEvent(&end);
-    printf("Copying region from device took %f ms\n", getCudaEventTime(start, end));
+    printf("\nCopying region from device took %f ms\n", getCudaEventTime(start, end));
 
     return region;
 }
