@@ -49,6 +49,9 @@ __device__ int gpu_inside(int3 pos);
 __device__ int getGlobalIdx_3D_3D();
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b);
 
+//Functions accessible by both
+__host__ __device__ int3 getGlobalPos(int globalThreadId);
+
 //Print/get properties of Nvidia CUDA card
 void print_properties();
 int getAmountOfSMs(int device);

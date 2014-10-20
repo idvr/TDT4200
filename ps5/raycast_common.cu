@@ -335,13 +335,41 @@ __device__ int gpu_inside(int3 pos){
     return x && y && z;
 }
 
+__device__ int getGlobalThreadId_3D_3D(){
+    return 0;
+}
+
+__device__ int getGlobalBlockId_3D_3D(){
+    return blockIdx.x + (blockIdx.y*gridDim.x)
+            + (blockIdx.z*gridDim.x*gridDim.y);
+}
+
 __device__ int getGlobalIdx_3D_3D(){
-    int blockId = blockIdx.x + (blockIdx.y*gridDim.x)
-                    + (blockIdx.z*gridDim.x*gridDim.y);
+    int blockId = getGlobalBlockId_3D_3D();
     int threadId = threadIdx.x + (threadIdx.y*blockDim.x)
                     + (threadIdx.z*blockDim.x*blockDim.y)
                     + blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
+}
+
+__host__ __device__ int3 getGlobalPos(int globalThreadId){
+    int3 pos = {
+        .x = globalThreadId,
+            .y = 0, .z = 0};
+
+    //Check if x > (512^2 - 1)
+    if ((IMAGE_SIZE-1) < pos.x){
+        pos.z = pos.x/IMAGE_SIZE;
+        pos.x -= pos.z*IMAGE_SIZE;
+    }
+
+    //Check if x > (512 - 1)
+    if ((IMAGE_DIM-1) < pos.x){
+        pos.y = pos.x/IMAGE_DIM;
+        pos.x -= pos.y*IMAGE_DIM;
+    }
+
+    return pos;
 }
 
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
@@ -349,4 +377,3 @@ __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
     unsigned char vb = data[gpu_index(b)];
     return (abs(va-vb) < 1);
 }
-
