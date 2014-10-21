@@ -44,13 +44,13 @@ int inside(float3 post);
 int index(int z, int y, int x);
 
 //Functions accessible by kernels
-__device__ int gpu_index(int3 pos);
-__device__ int gpu_inside(int3 pos);
+__device__ int getBlockId_3D();
 __device__ int getGlobalIdx_3D_3D();
+__device__ int getBlockThreadId_3D();
+__device__ int gpu_isPosInside(int3 pos);
+__device__ int gpu_getDataIndex(int3 pos);
+__device__ int3 getGlobalPos(int globalThreadId);
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b);
-
-//Functions accessible by both
-__host__ __device__ int3 getGlobalPos(int globalThreadId);
 
 //Print/get properties of Nvidia CUDA card
 void print_properties();

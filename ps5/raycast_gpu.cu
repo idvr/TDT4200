@@ -1,31 +1,81 @@
 #include "raycast.h"
 
+__device__ int getBlockId_3D(){
+    return blockIdx.x + (blockIdx.y*gridDim.x)
+            + (blockIdx.z*gridDim.x*gridDim.y);
+}
+
+__device__ int gpu_getDataIndex(int3 pos){
+    return pos.z*IMAGE_SIZE
+        + pos.y*DATA_DIM + pos.x;
+}
+
+__device__ int gpu_isPosInside(int3 pos){
+    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
+    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
+    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+    return x && y && z;
+}
+
+__device__ int getBlockThreadId_3D(){
+    return threadIdx.x + (threadIdx.y*blockDim.x)
+            + (threadIdx.z*blockDim.x*blockDim.y);
+}
+
+__device__ int getGlobalIdx_3D_3D(){
+    int blockId = getBlockId_3D();
+    int threadId = getBlockThreadId_3D() +
+            blockId*(blockDim.x*blockDim.y*blockDim.z);
+    return threadId;
+}
+
+__device__ int3 getGlobalPos(int globalThreadId){
+    int3 pos = {
+        .x = globalThreadId,
+            .y = 0, .z = 0};
+
+    //Check if x > (512^2 - 1)
+    if ((IMAGE_SIZE-1) < pos.x){
+        pos.z = pos.x/IMAGE_SIZE;
+        pos.x -= pos.z*IMAGE_SIZE;
+    }
+
+    //Check if x > (512 - 1)
+    if ((IMAGE_DIM-1) < pos.x){
+        pos.y = pos.x/IMAGE_DIM;
+        pos.x -= pos.y*IMAGE_DIM;
+    }
+
+    return pos;
+}
+
+__device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
+    unsigned char va = data[gpu_getDataIndex(a)];
+    unsigned char vb = data[gpu_getDataIndex(b)];
+    return (abs(va-vb) < 1);
+}
+
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
     *changed = 0;
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
     int3 pixel = {.x = threadIdx.x,
-        .y = blockIdx.x*DATA_DIM,
-        .z = blockIdx.y*DATA_SIZE};
-    int tid = pixel.z + pixel.y + pixel.x;
+        .y = blockIdx.x, .z = blockIdx.y};
+    int tid = getGlobalIdx_3D_3D();
 
-    if(pixel.y == 0 && pixel.x == 0 && pixel.z == 0){
+    /*if(pixel.y == 0 && pixel.x == 0 && pixel.z == 0){
         int x = 2147483648/2;
         printf("Value: 1073741824\n");
         printf("Ints : %d\n", x);
-    }
+    }*/
 
-    /*if (50 == pixel.x && 300 == (pixel.y&pixel.z)){
-        printf("\nI EXIST!!!\n\n");
-    }
-
-    if (0 > tid || (512*512*512) <= tid){
+    if (0 > tid || DATA_SIZE <= tid){
         printf("We have tid out of boundary: %d\n", tid);
     }
-    printf("tid: %d: .x = %d, .y = %d, .z = %d\n", tid, pixel.x, pixel.y, pixel.z);*/
+    printf("tid: %d: .x = %d, .y = %d, .z = %d\n", tid, pixel.x, pixel.y, pixel.z);
 
-    /*if(NEW_VOX == region[tid]){
+    if(NEW_VOX == region[tid]){
         printf("Entered first if!\n");
         printf("tid: .x=%d, .y=%d, .z=%d\n", pixel.x, pixel.y, pixel.z);
         int3 pos;
@@ -36,18 +86,18 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
             pos.y += dy[i];
             pos.z += dz[i];
             if (//Check that pos pixel is inside image/region
-                (gpu_inside(pos) &&
+                gpu_isPosInside(pos) &&
                 //Check that it's not already been "discovered"
-                (!region[tid]) &&
+                !region[tid] &&
                 //Check that the corresponding color values actually match
-                (abs(data[tid] - data[gpu_index(pos)]) < 1)){
+                abs(data[tid] - data[gpu_getDataIndex(pos)]) < 1){
                 //then
                 printf("Found neighbour!\n");
                 region[tid] = NEW_VOX;
                 atomicAdd(changed, 1);
             }
         }
-    }*/
+    }
 
     //__syncthreads();
     *changed = 1;

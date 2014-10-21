@@ -322,37 +322,37 @@ dim3** getGridAndBlockSize(int device){
     return sizes;
 }
 
-//################# Functions accessible by kernels ##############
-__device__ int gpu_index(int3 pos){
+/*################# Functions accessible by kernels ##############
+__device__ int getBlockId_3D(){
+    return blockIdx.x + (blockIdx.y*gridDim.x)
+            + (blockIdx.z*gridDim.x*gridDim.y);
+}
+
+__device__ int gpu_getDataIndex(int3 pos){
     return pos.z*IMAGE_SIZE
         + pos.y*DATA_DIM + pos.x;
 }
 
-__device__ int gpu_inside(int3 pos){
+__device__ int gpu_isPosInside(int3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
 }
 
-__device__ int getGlobalThreadId_3D_3D(){
-    return 0;
-}
-
-__device__ int getGlobalBlockId_3D_3D(){
-    return blockIdx.x + (blockIdx.y*gridDim.x)
-            + (blockIdx.z*gridDim.x*gridDim.y);
+__device__ int getBlockThreadId_3D(){
+    return threadIdx.x + (threadIdx.y*blockDim.x)
+            + (threadIdx.z*blockDim.x*blockDim.y);
 }
 
 __device__ int getGlobalIdx_3D_3D(){
-    int blockId = getGlobalBlockId_3D_3D();
-    int threadId = threadIdx.x + (threadIdx.y*blockDim.x)
-                    + (threadIdx.z*blockDim.x*blockDim.y)
-                    + blockId*(blockDim.x*blockDim.y*blockDim.z);
+    int blockId = getBlockId_3D();
+    int threadId = getBlockThreadId_3D() +
+            blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
 
-__host__ __device__ int3 getGlobalPos(int globalThreadId){
+__device__ int3 getGlobalPos(int globalThreadId){
     int3 pos = {
         .x = globalThreadId,
             .y = 0, .z = 0};
@@ -373,7 +373,8 @@ __host__ __device__ int3 getGlobalPos(int globalThreadId){
 }
 
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[gpu_index(a)];
-    unsigned char vb = data[gpu_index(b)];
+    unsigned char va = data[gpu_getDataIndex(a)];
+    unsigned char vb = data[gpu_getDataIndex(b)];
     return (abs(va-vb) < 1);
 }
+##############*/

@@ -38,19 +38,24 @@ all_local: clean all
 	optirun ./run_gpu_combined
 
 cpu: clean bmp.cpp raycast_common.cu raycast_cpu.cu
-	nvcc bmp.cpp raycast_common.cu raycast_cpu.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_cpu
+	nvcc bmp.cpp raycast_common.cu raycast_cpu.cu \
+-lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_cpu
 
 gpu: clean bmp.cpp raycast_common.cu raycast_gpu.cu
-	nvcc bmp.cpp raycast_common.cu raycast_gpu.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu
+	nvcc bmp.cpp raycast_common.cu raycast_gpu.cu \
+-lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu
 
 gpu_shared: clean bmp.cpp raycast_common.cu raycast_gpu_shared.cu
-	nvcc bmp.cpp raycast_common.cu raycast_gpu_shared.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_shared
+	nvcc bmp.cpp raycast_common.cu raycast_gpu_shared.cu \
+-lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_shared
 
 gpu_texture: clean bmp.cpp raycast_common.cu raycast_gpu_texture.cu
-	nvcc bmp.cpp raycast_common.cu raycast_gpu_texture.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_texture
+	nvcc bmp.cpp raycast_common.cu raycast_gpu_texture.cu \
+-lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_texture
 
 gpu_combined: clean bmp.cpp raycast_common.cu raycast_gpu_combined.cu
-	nvcc bmp.cpp raycast_common.cu raycast_gpu_combined.cu -lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_combined
+	nvcc bmp.cpp raycast_common.cu raycast_gpu_combined.cu \
+-lcudart -g -G -use_fast_math -lm -arch=sm_20 -o run_gpu_combined
 
 clean:
 	rm -f run_* *.o
