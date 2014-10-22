@@ -1,4 +1,4 @@
-#include "raycast.h"
+#include "raycast.cuh"
 
 stack_t* new_stack(){
     stack_t* stack = (stack_t*)malloc(sizeof(stack_t));
@@ -377,4 +377,4 @@ __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
     unsigned char vb = data[gpu_getDataIndex(b)];
     return (abs(va-vb) < 1);
 }
-##############*/
+//##############*/

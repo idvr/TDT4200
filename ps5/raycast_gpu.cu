@@ -1,4 +1,4 @@
-#include "raycast.h"
+#include "raycast.cuh"
 
 __device__ int getBlockId_3D(){
     return blockIdx.x + (blockIdx.y*gridDim.x)
@@ -70,10 +70,7 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
         printf("Ints : %d\n", x);
     }*/
 
-    if (0 > tid || DATA_SIZE <= tid){
-        printf("We have tid out of boundary: %d\n", tid);
-    }
-    printf("tid: %d: .x = %d, .y = %d, .z = %d\n", tid, pixel.x, pixel.y, pixel.z);
+    //printf("tid: %d: .x = %d, .y = %d, .z = %d\n", tid, pixel.x, pixel.y, pixel.z);
 
     if(NEW_VOX == region[tid]){
         printf("Entered first if!\n");
@@ -104,30 +101,40 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
     return;
 }
 
+void gpuGRKCall(dim3** sizes, int *changed, int* gpu_changed, unsigned char *image, unsigned char* region, int offset){
+    int tmp = *changed;
+    gEC(cudaMemcpy(gpu_changed, changed, sizeof(int), cudaMemcpyHostToDevice));
+    //printf("Finished changed memcpy to device!\n");
+    region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&image[offset], &region[offset], gpu_changed);
+    gEC(cudaMemcpy(changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
+    tmp += *changed;
+    *changed = tmp;
+}
+
 unsigned char* grow_region_gpu(unsigned char* data){
     printf("\nEntered grow_region_gpu!\n");
 
     cudaEvent_t start, end;
     dim3 **sizes = getGridAndBlockSize(0);
-    int changed = 1, *gpu_changed, rounds = 1;
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaImage, *cudaRegion, *region;
     region = (unsigned char*) calloc(DATA_SIZE, sizeof(unsigned char));
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
+    int changed = 1, *gpu_changed, rounds = DATA_SIZE/getKernelThreadAmount(sizes);
     printf("Done instantiating variables...\n");
 
     gEC(cudaMalloc(&gpu_changed, sizeof(int)));
     //Malloc image on cuda device
-    gEC(cudaMalloc(&cudaImage, sizeof(unsigned char)*DATA_SIZE));
+    gEC(cudaMalloc(&cudaImage, dataSize));
     //Malloc region on cuda device
-    gEC(cudaMalloc(&cudaRegion, sizeof(unsigned char)*DATA_SIZE));
+    gEC(cudaMalloc(&cudaRegion, dataSize));
 
     printf("Done mallocing on CUDA device!\n");
 
     //Copy image and region over to device
     createCudaEvent(&start);
-    gEC(cudaMemcpy(cudaImage, data, sizeof(unsigned char)*DATA_SIZE, cudaMemcpyHostToDevice));
-    gEC(cudaMemcpy(cudaRegion, region, sizeof(unsigned char)*DATA_SIZE, cudaMemcpyHostToDevice));
+    gEC(cudaMemcpy(cudaImage, data, dataSize, cudaMemcpyHostToDevice));
+    gEC(cudaMemcpy(cudaRegion, region, dataSize, cudaMemcpyHostToDevice));
     createCudaEvent(&end);
     printf("Copying image and region to device took %f ms\n",
         getCudaEventTime(start, end));
@@ -136,25 +143,28 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
 
     int roundsSize = DATA_SIZE/rounds;
-    for (int i = 0; (i < 3)/* && (changed)*/; ++i){
-        printf("\nEntered #%d kernel outer-loop\n", i);
+    for (int i = 0; (i < 1)/* && (changed)*/; ++i){
+        printf("\nEntered #%d kernel outer-loop\n", i+1);
         for (int j = 0; j < rounds; ++j){
-            gEC(cudaMemcpy(gpu_changed, &changed, sizeof(int), cudaMemcpyHostToDevice));
-            printf("Finished changed memcpy to device!\n");
-            int tmp = changed;
-            //region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&cudaImage[roundsSize*j], &cudaRegion[roundsSize*j], gpu_changed);
-            gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-            tmp += changed;
-            changed = tmp;
+            printf("Iteration #%d of inner-loop\n", j+1);
+            gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, (roundsSize*j));
         }
-        printf("Finished iteration %d of kernel outer-loop!\n", i);
+        if (0 != DATA_SIZE%rounds){
+            printf("DATA_SIZE%%rounds != 0, running %dth iteration of inner-loop\n", rounds);
+            gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, (DATA_SIZE-roundsSize-1));
+        }
+        printf("Finished iteration %d of kernel outer-loop!\n", i+1);
     }
 
     //Copy region from device
     createCudaEvent(&start);
-    gEC(cudaMemcpy(region, cudaRegion, sizeof(unsigned char)*DATA_SIZE, cudaMemcpyDeviceToHost));
+    gEC(cudaMemcpy(region, cudaRegion, dataSize, cudaMemcpyDeviceToHost));
     createCudaEvent(&end);
     printf("\nCopying region from device took %f ms\n", getCudaEventTime(start, end));
+
+    gEC(cudaFree(cudaImage));
+    gEC(cudaFree(cudaRegion));
+    gEC(cudaFree(gpu_changed));
 
     return region;
 }
@@ -173,9 +183,7 @@ int main(int argc, char** argv){
     //float ms_time;
     /*print_properties();
 
-    printf("Done printing properties\n");
-
-    printf("size of data: %zd\n", sizeof(unsigned char)*DATA_DIM*DATA_DIM*DATA_DIM/(1024*1024));*/
+    printf("Done printing properties\n");*/
 
     unsigned char* data = create_data();
 
@@ -192,7 +200,7 @@ int main(int argc, char** argv){
 
     printf("Done creating image\n");
 
-    //write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
+    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
 
     printf("Done with program\n");
     return 0;

@@ -2,7 +2,7 @@
 
 // Serial ray casting
 unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
-    unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_DIM*IMAGE_DIM);
+    unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_SIZE);
 
     // Camera/eye position, and direction of viewing. These can be changed to look
     // at the volume from different angles.

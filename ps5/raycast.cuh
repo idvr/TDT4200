@@ -12,10 +12,16 @@
 
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
-#define DATA_SIZE (512*512*512)
+size_t dataDim = sizeof(unsigned char)*DATA_DIM;
+#define DATA_SIZE (DATA_DIM*DATA_DIM*DATA_DIM)
+size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
+
 // image is 2D, total size is IMAGE_DIM x IMAGE_DIM
 #define IMAGE_DIM 512
-#define IMAGE_SIZE (512*512)
+size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
+#define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
+size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
+
 //Whether to abort when errors are found in above macro/function call
 #define ERROR_ABORT 1
 //For error-checking Nvidia CUDA calls
@@ -32,16 +38,17 @@ typedef struct{
 } stack_t;
 
 //General support functions
+int inside(int3 pos);
 stack_t* new_stack();
-void push(stack_t* stack, int3 p);
+int inside(float3 post);
 int3 pop(stack_t* stack);
-float3 cross(float3 a, float3 b);
 float3 normalize(float3 v);
+int index(int z, int y, int x);
 float3 add(float3 a, float3 b);
 float3 scale(float3 a, float b);
-int inside(int3 pos);
-int inside(float3 post);
-int index(int z, int y, int x);
+float3 cross(float3 a, float3 b);
+void push(stack_t* stack, int3 p);
+int getKernelThreadAmount(dim3** sizes);
 
 //Functions accessible by kernels
 __device__ int getBlockId_3D();
