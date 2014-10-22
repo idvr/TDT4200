@@ -224,6 +224,11 @@ int index(int3 pos){
             + pos.y*DATA_DIM + pos.x;
 }
 
+int getKernelThreadAmount(dim3** sizes){
+    return (sizes[0]->x*sizes[0]->y*sizes[0]->z) *
+            (sizes[1]->x*sizes[1]->y*sizes[1]->z);
+}
+
 // Indexing function (note the argument order)
 int index(int z, int y, int x){
     return z * DATA_DIM*DATA_DIM + y*DATA_DIM + x;
