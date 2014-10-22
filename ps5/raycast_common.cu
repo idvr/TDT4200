@@ -230,8 +230,9 @@ int index(int3 pos){
 }
 
 int getKernelThreadAmount(dim3** sizes){
-    return (sizes[0]->x*sizes[0]->y*sizes[0]->z) *
-            (sizes[1]->x*sizes[1]->y*sizes[1]->z);
+    int result = (sizes[0]->x*sizes[0]->y*sizes[0]->z);
+    result *= (sizes[1]->x*sizes[1]->y*sizes[1]->z);
+    return result;
 }
 
 // Indexing function (note the argument order)
