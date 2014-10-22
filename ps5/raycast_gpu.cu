@@ -146,7 +146,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     for (int i = 0; (i < 1)/* && (changed)*/; ++i){
         printf("\nEntered #%d kernel outer-loop\n", i+1);
         for (int j = 0; j < rounds; ++j){
-            printf("Iteration #%d of inner-loop\n", j+1);
+            //printf("Iteration #%d of inner-loop\n", j+1);
             gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, (roundsSize*j));
         }
         if (0 != DATA_SIZE%rounds){

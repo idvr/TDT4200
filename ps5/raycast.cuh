@@ -12,15 +12,15 @@
 
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
-size_t dataDim = sizeof(unsigned char)*DATA_DIM;
+static size_t dataDim = sizeof(unsigned char)*DATA_DIM;
 #define DATA_SIZE (DATA_DIM*DATA_DIM*DATA_DIM)
-size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
+static size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
 
 // image is 2D, total size is IMAGE_DIM x IMAGE_DIM
 #define IMAGE_DIM 512
-size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
+static size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
-size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
+static size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
 
 //Whether to abort when errors are found in above macro/function call
 #define ERROR_ABORT 1
