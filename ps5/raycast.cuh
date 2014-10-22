@@ -12,15 +12,15 @@
 
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
-static size_t dataDim = sizeof(unsigned char)*DATA_DIM;
+extern size_t dataDim;
 #define DATA_SIZE (DATA_DIM*DATA_DIM*DATA_DIM)
-static size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
+extern size_t dataSize;
 
 // image is 2D, total size is IMAGE_DIM x IMAGE_DIM
 #define IMAGE_DIM 512
-static size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
+extern size_t imageDim;
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
-static size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
+extern size_t imageSize;
 
 //Whether to abort when errors are found in above macro/function call
 #define ERROR_ABORT 1
@@ -55,7 +55,7 @@ __device__ int getBlockId_3D();
 __device__ int getGlobalIdx_3D_3D();
 __device__ int getBlockThreadId_3D();
 __device__ int gpu_isPosInside(int3 pos);
-__device__ int gpu_getDataIndex(int3 pos);
+__device__ int gpu_getIndex(int3 pos);
 __device__ int3 getGlobalPos(int globalThreadId);
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b);
 

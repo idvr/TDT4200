@@ -1,5 +1,10 @@
 #include "raycast.cuh"
 
+size_t dataDim = sizeof(unsigned char)*DATA_DIM;
+size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
+size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
+size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
+
 stack_t* new_stack(){
     stack_t* stack = (stack_t*)malloc(sizeof(stack_t));
     stack->size = 0;
@@ -296,34 +301,22 @@ float getCudaEventTime(cudaEvent_t start, cudaEvent_t end){
 
 dim3** getGridAndBlockSize(int device){
     dim3 grid, block;
-    int SMs = getAmountOfSMs(device),
-        totThreads = getMaxThreadsPerSM(device)*SMs,
-        totBlocks = totThreads/512; //Ref amount threads per block below
     dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
     sizes[0] = (dim3*) malloc(sizeof(dim3));
     sizes[1] = (dim3*) malloc(sizeof(dim3));
-    printf("Done assigning to size!\n");
+    //printf("Done assigning to size!\n");
 
     //Hardcoding blockdim values (8^3 = 512 = DATA_DIM)
-    block.x = 8; grid.x = 1;
-    block.y = 8; grid.y = 1;
-    block.z = 8; grid.z = 1;
+    block.z = 8; grid.z = (DATA_DIM/block.z);
+    block.y = 8; grid.y = (DATA_DIM/block.y);
+    block.x = 16; grid.x = (DATA_DIM/block.x);
+    //printf("Done assigning grid and block values!\n");
 
-    while(8 <= totBlocks){
-        grid.x += 2;
-        grid.y += 2;
-        grid.z += 2;
-        totBlocks /= 8;
-    }
-    /*if (totBlocks){
-        printf("\t\t%d threads left, making %d blocks\n", totBlocks*512, totBlocks);
-    }*/
-    printf("Done assigning grid and block values!\n");
-
-    printf("Before memcpy's!\n");
     memcpy(sizes[0], &grid, sizeof(dim3));
     memcpy(sizes[1], &block, sizeof(dim3));
-    printf("Done with memcpy!\n");
+    //printf("Done with memcpy!\n");
+    printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
+    printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
     return sizes;
 }
 
@@ -333,7 +326,7 @@ __device__ int getBlockId_3D(){
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int gpu_getDataIndex(int3 pos){
+__device__ int gpu_getIndex(int3 pos){
     return pos.z*IMAGE_SIZE
         + pos.y*DATA_DIM + pos.x;
 }
@@ -378,8 +371,8 @@ __device__ int3 getGlobalPos(int globalThreadId){
 }
 
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[gpu_getDataIndex(a)];
-    unsigned char vb = data[gpu_getDataIndex(b)];
+    unsigned char va = data[gpu_getIndex(a)];
+    unsigned char vb = data[gpu_getIndex(b)];
     return (abs(va-vb) < 1);
 }
 //##############*/

@@ -5,21 +5,14 @@ __device__ int getBlockId_3D(){
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int gpu_getDataIndex(int3 pos){
-    return pos.z*IMAGE_SIZE
-        + pos.y*DATA_DIM + pos.x;
-}
-
-__device__ int gpu_isPosInside(int3 pos){
-    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
-    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
-    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
-    return x && y && z;
-}
-
 __device__ int getBlockThreadId_3D(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
+}
+
+__device__ int gpu_getIndex(int3 pos){
+    return pos.z*IMAGE_SIZE
+        + pos.y*DATA_DIM + pos.x;
 }
 
 __device__ int getGlobalIdx_3D_3D(){
@@ -50,9 +43,16 @@ __device__ int3 getGlobalPos(int globalThreadId){
 }
 
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[gpu_getDataIndex(a)];
-    unsigned char vb = data[gpu_getDataIndex(b)];
+    unsigned char va = data[gpu_getIndex(a)];
+    unsigned char vb = data[gpu_getIndex(b)];
     return (abs(va-vb) < 1);
+}
+
+__device__ int gpu_isPosInside(int3 pos){
+    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
+    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
+    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+    return x && y && z;
 }
 
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
@@ -60,36 +60,27 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    int3 pixel = {.x = threadIdx.x,
-        .y = blockIdx.x, .z = blockIdx.y};
     int tid = getGlobalIdx_3D_3D();
-
-    /*if(pixel.y == 0 && pixel.x == 0 && pixel.z == 0){
-        int x = 2147483648/2;
-        printf("Value: 1073741824\n");
-        printf("Ints : %d\n", x);
-    }*/
-
-    //printf("tid: %d: .x = %d, .y = %d, .z = %d\n", tid, pixel.x, pixel.y, pixel.z);
+    int3 pixel = getGlobalPos(tid);
 
     if(NEW_VOX == region[tid]){
-        printf("Entered first if!\n");
-        printf("tid: .x=%d, .y=%d, .z=%d\n", pixel.x, pixel.y, pixel.z);
-        int3 pos;
+        //printf("Entered first if!\n");
+        //printf("tid: .x=%d, .y=%d, .z=%d\n", pixel.x, pixel.y, pixel.z);
+        int3 pos; int pos_id;
         region[tid] = VISITED;
         for (int i = 0; i < 6; ++i){
             pos = pixel;
             pos.x += dx[i];
             pos.y += dy[i];
             pos.z += dz[i];
+            pos_id = gpu_getIndex(pos);
             if (//Check that pos pixel is inside image/region
                 gpu_isPosInside(pos) &&
                 //Check that it's not already been "discovered"
-                !region[tid] &&
+                !region[pos_id] &&
                 //Check that the corresponding color values actually match
-                abs(data[tid] - data[gpu_getDataIndex(pos)]) < 1){
-                //then
-                printf("Found neighbour!\n");
+                abs(data[tid] - data[pos_id]) < 1){
+                printf("Found neighbour! changed: %d\n", changed+1);
                 region[tid] = NEW_VOX;
                 atomicAdd(changed, 1);
             }
@@ -97,7 +88,7 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
     }
 
     //__syncthreads();
-    *changed = 1;
+    //*changed = 1;
     return;
 }
 
@@ -115,12 +106,12 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("\nEntered grow_region_gpu!\n");
 
     cudaEvent_t start, end;
+    int changed = 1, *gpu_changed;
     dim3 **sizes = getGridAndBlockSize(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaImage, *cudaRegion, *region;
     region = (unsigned char*) calloc(DATA_SIZE, sizeof(unsigned char));
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
-    int changed = 1, *gpu_changed, rounds = DATA_SIZE/getKernelThreadAmount(sizes);
     printf("Done instantiating variables...\n");
 
     gEC(cudaMalloc(&gpu_changed, sizeof(int)));
@@ -142,17 +133,9 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
     printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
 
-    int roundsSize = DATA_SIZE/rounds;
-    for (int i = 0; (i < 1)/* && (changed)*/; ++i){
+    for (int i = 0; (i < 1) && (changed); ++i){
         printf("\nEntered #%d kernel outer-loop\n", i+1);
-        for (int j = 0; j < rounds; ++j){
-            //printf("Iteration #%d of inner-loop\n", j+1);
-            gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, (roundsSize*j));
-        }
-        if (0 != DATA_SIZE%rounds){
-            printf("DATA_SIZE%%rounds != 0, running %dth iteration of inner-loop\n", rounds);
-            gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, (DATA_SIZE-roundsSize-1));
-        }
+        gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, 0);
         printf("Finished iteration %d of kernel outer-loop!\n", i+1);
     }
 
@@ -180,7 +163,6 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
 }
 
 int main(int argc, char** argv){
-    //float ms_time;
     /*print_properties();
 
     printf("Done printing properties\n");*/
@@ -200,7 +182,7 @@ int main(int argc, char** argv){
 
     printf("Done creating image\n");
 
-    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
+    //write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
 
     printf("Done with program\n");
     return 0;
