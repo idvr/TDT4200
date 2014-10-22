@@ -112,7 +112,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     unsigned char *cudaImage, *cudaRegion, *region;
     region = (unsigned char*) calloc(DATA_SIZE, sizeof(unsigned char));
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
-    printf("Done instantiating variables...\n");
+    //printf("Done instantiating variables...\n");
 
     gEC(cudaMalloc(&gpu_changed, sizeof(int)));
     //Malloc image on cuda device
@@ -120,7 +120,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     //Malloc region on cuda device
     gEC(cudaMalloc(&cudaRegion, dataSize));
 
-    printf("Done mallocing on CUDA device!\n");
+    //printf("Done mallocing on CUDA device!\n");
 
     //Copy image and region over to device
     createCudaEvent(&start);
@@ -130,10 +130,10 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("Copying image and region to device took %f ms\n",
         getCudaEventTime(start, end));
 
-    printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
-    printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
+    //printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
+    //printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
 
-    for (int i = 0; (i < 1) && (changed); ++i){
+    for (int i = 0; changed && (3 > i); ++i){
         printf("\nEntered #%d kernel outer-loop\n", i+1);
         gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, 0);
         printf("Finished iteration %d of kernel outer-loop!\n", i+1);
