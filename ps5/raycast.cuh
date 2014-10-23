@@ -42,13 +42,15 @@ int inside(int3 pos);
 stack_t* new_stack();
 int inside(float3 post);
 int3 pop(stack_t* stack);
-float3 normalize(float3 v);
 int index(int z, int y, int x);
-float3 add(float3 a, float3 b);
-float3 scale(float3 a, float b);
-float3 cross(float3 a, float3 b);
 void push(stack_t* stack, int3 p);
 int getKernelThreadAmount(dim3** sizes);
+
+//See below, further down, for re-declaration of the immediately below
+//float3 normalize(float3 v);
+//float3 add(float3 a, float3 b);
+//float3 scale(float3 a, float b);
+//float3 cross(float3 a, float3 b);
 
 //Functions accessible by kernels
 __device__ int getBlockId_3D();
