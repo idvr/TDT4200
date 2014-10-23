@@ -56,7 +56,6 @@ __device__ int gpu_isPosInside(int3 pos){
 }
 
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
-    *changed = 0;
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
@@ -80,8 +79,8 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
                 !region[pos_id] &&
                 //Check that the corresponding color values actually match
                 abs(data[tid] - data[pos_id]) < 1){
-                printf("Found neighbour! changed: %d\n", changed+1);
-                region[tid] = NEW_VOX;
+                //printf("Found neighbour! changed: %d\n", (*changed)+1);
+                region[pos_id] = NEW_VOX;
                 atomicAdd(changed, 1);
             }
         }
@@ -93,13 +92,11 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
 }
 
 void gpuGRKCall(dim3** sizes, int *changed, int* gpu_changed, unsigned char *image, unsigned char* region, int offset){
-    int tmp = *changed;
-    gEC(cudaMemcpy(gpu_changed, changed, sizeof(int), cudaMemcpyHostToDevice));
+    gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
     //printf("Finished changed memcpy to device!\n");
     region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&image[offset], &region[offset], gpu_changed);
     gEC(cudaMemcpy(changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-    tmp += *changed;
-    *changed = tmp;
+    printf("changed: %d\n", *changed);
 }
 
 unsigned char* grow_region_gpu(unsigned char* data){
@@ -133,7 +130,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     //printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
     //printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
 
-    for (int i = 0; changed && (3 > i); ++i){
+    for (int i = 0; changed /*&& (3 > i)*/; ++i){
         printf("\nEntered #%d kernel outer-loop\n", i+1);
         gpuGRKCall(sizes, &changed, gpu_changed, cudaImage, cudaRegion, 0);
         printf("Finished iteration %d of kernel outer-loop!\n", i+1);
