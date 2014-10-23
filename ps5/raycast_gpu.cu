@@ -179,6 +179,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
 }
 
 __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsigned char* region){
+    int tid = getGlobalIdx_3D_3D();
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000,.y=1000,.z=1000};
@@ -192,7 +193,21 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 
     float fov = 3.14/4;
     float step_size = 0.5;
-    float pixel_with = tan(fov/2.0)/(IMAGE_DIM/2);
+    float pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
+
+    //Do the raycasting
+    float3 screen_center = add(camera, forward);
+    float3 ray = add(add(screen_center, scale(right, x*pixel_width)), scale(up, y*pixel_width));
+    ray = add(ray, scale(camera, -1));
+    ray = normalize(ray);
+    float3 pos = camera;
+
+
+    for (int i = 0; 255 > image[tid] && (5000 > i); ++i){
+        pos = add(pos, scale(ray, step_size));
+        int r = value_at(pos, region);
+        image[tid] += value_at(pos, data)*(0.01+r);
+    }
 
     return;
 }
