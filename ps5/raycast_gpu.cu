@@ -1,5 +1,36 @@
 #include "raycast.cuh"
 
+// float3 utilities
+__host__ __device__ float3 cross(float3 a, float3 b){
+    float3 c;
+    c.x = a.y*b.z - a.z*b.y;
+    c.y = a.z*b.x - a.x*b.z;
+    c.z = a.x*b.y - a.y*b.x;
+    return c;
+}
+
+__host__ __device__ float3 normalize(float3 v){
+    float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    v.x /= l;
+    v.y /= l;
+    v.z /= l;
+    return v;
+}
+
+__host__ __device__ float3 add(float3 a, float3 b){
+    a.x += b.x;
+    a.y += b.y;
+    a.z += b.z;
+    return a;
+}
+
+__host__ __device__ float3 scale(float3 a, float b){
+    a.x *= b;
+    a.y *= b;
+    a.z *= b;
+    return a;
+}
+
 __device__ int getBlockId_3D(){
     return blockIdx.x + (blockIdx.y*gridDim.x)
             + (blockIdx.z*gridDim.x*gridDim.y);
@@ -111,7 +142,6 @@ unsigned char* grow_region_gpu(unsigned char* data){
     //Malloc region on cuda device
     gEC(cudaMalloc(&cudaRegion, dataSize));
     gEC(cudaMemset(cudaRegion, 0, dataSize));
-
     //printf("Done mallocing on CUDA device!\n");
 
     //Copy image and region over to device
@@ -121,9 +151,6 @@ unsigned char* grow_region_gpu(unsigned char* data){
     createCudaEvent(&end);
     printf("Copying image and region to device took %f ms\n\n",
         getCudaEventTime(start, end));
-
-    //printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
-    //printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
 
     createCudaEvent(&start);
     for (int i = 0; changed && (175 > i); ++i){
@@ -152,7 +179,21 @@ unsigned char* grow_region_gpu(unsigned char* data){
 }
 
 __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsigned char* region){
-    //blah
+    float3 camera = {.x=1000,.y=1000,.z=1000};
+    float3 forward = {.x=-1, .y=-1, .z=-1};
+    float3 z_axis = {.x=0, .y=0, .z = 1};
+
+    float3 right = cross(forward, z_axis);
+    float3 up = cross(right, forward);
+
+    up = normalize(up);
+    right = normalize(right);
+    forward = normalize(forward);
+
+    float fov = 3.14/4;
+    float step_size = 0.5;
+    float pixel_with = tan(fov/2.0)/(IMAGE_DIM/2);
+
     return;
 }
 
@@ -170,13 +211,26 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     gEC(cudaMemset(cudaData, 0, dataSize));
     //printf("Done mallocing on CUDA device!\n");
 
-    //Copy image and region over to device
+    //Copy data and region over to device
     createCudaEvent(&start);
     gEC(cudaMemcpy(cudaData, data, dataSize, cudaMemcpyHostToDevice));
     gEC(cudaMemcpy(cudaRegion, region, dataSize, cudaMemcpyHostToDevice));
     createCudaEvent(&end);
     printf("Copying data and region to device took %f ms\n\n",
         getCudaEventTime(start, end));
+
+    raycast_kernel<<<*sizes[0], *sizes[1]>>>(cudaData, cudaImage, cudaRegion);
+
+    //Copy image back from device
+    createCudaEvent(&start);
+    gEC(cudaMemcpy(cudaImage, image, imageSize, cudaMemcpyDeviceToHost));
+    createCudaEvent(&end);
+    printf("Copying image from device took %f ms\n\n",
+        getCudaEventTime(start, end));
+
+    gEC(cudaFree(cudaData));
+    gEC(cudaFree(cudaImage));
+    gEC(cudaFree(cudaRegion));
 
     return image;
 }

@@ -32,7 +32,7 @@ int3 pop(stack_t* stack){
     return stack->pixels[stack->size];
 }
 
-// float3 utilities
+/*// float3 utilities
 float3 cross(float3 a, float3 b){
     float3 c;
     c.x = a.y*b.z - a.z*b.y;
@@ -65,7 +65,7 @@ float3 scale(float3 a, float b){
     a.z *= b;
 
     return a;
-}
+}*/
 
 void setCudaDevice(cudaDeviceProp* p, int device){
     gEC(cudaSetDevice(device));

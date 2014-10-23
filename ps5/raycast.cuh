@@ -54,10 +54,16 @@ int getKernelThreadAmount(dim3** sizes);
 __device__ int getBlockId_3D();
 __device__ int getGlobalIdx_3D_3D();
 __device__ int getBlockThreadId_3D();
-__device__ int gpu_isPosInside(int3 pos);
 __device__ int gpu_getIndex(int3 pos);
+__device__ int gpu_isPosInside(int3 pos);
 __device__ int3 getGlobalPos(int globalThreadId);
 __device__ int gpu_similar(unsigned char* data, int3 a, int3 b);
+
+//Functions accessible by both device and host functions
+__host__ __device__ float3 normalize(float3 v);
+__host__ __device__ float3 add(float3 a, float3 b);
+__host__ __device__ float3 scale(float3 a, float b);
+__host__ __device__ float3 cross(float3 a, float3 b);
 
 //Print/get properties of Nvidia CUDA card
 void print_properties();
