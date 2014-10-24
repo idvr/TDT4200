@@ -390,8 +390,8 @@ int main(int argc, char** argv){
 
     printf("Done creating data\n");
 
-    //unsigned char* region = grow_region_gpu(data);
-    unsigned char* region = grow_region_serial(data);
+    unsigned char* region = grow_region_gpu(data);
+    //unsigned char* region = grow_region_serial(data);
     //printf("grow_region_gpu() took %f ms\n", ms_time);
 
     printf("Done creating region\n");
