@@ -240,7 +240,7 @@ int index(int z, int y, int x){
     return z * DATA_DIM*DATA_DIM + y*DATA_DIM + x;
 }
 
-// Trilinear interpolation
+/*// Trilinear interpolation
 float value_at(float3 pos, unsigned char* data){
     if(!inside(pos)){
         return 0;
@@ -269,7 +269,7 @@ float value_at(float3 pos, unsigned char* data){
     float c0 = rz*b0 + (1-rz)*b1;
 
     return c0;
-}
+}*/
 
 // Check if two values are similar, threshold can be changed.
 int similar(unsigned char* data, int3 a, int3 b){
@@ -300,7 +300,7 @@ float getCudaEventTime(cudaEvent_t start, cudaEvent_t end){
     return result;
 }
 
-dim3** getGridAndBlockSize(int device){
+dim3** getGridsBlocksGrowRegion(int device){
     dim3 grid, block;
     dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
     sizes[0] = (dim3*) malloc(sizeof(dim3));
@@ -311,6 +311,27 @@ dim3** getGridAndBlockSize(int device){
     block.z = 8; grid.z = (DATA_DIM/block.z);
     block.y = 8; grid.y = (DATA_DIM/block.y);
     block.x = 16; grid.x = (DATA_DIM/block.x);
+    //printf("Done assigning grid and block values!\n");
+
+    memcpy(sizes[0], &grid, sizeof(dim3));
+    memcpy(sizes[1], &block, sizeof(dim3));
+    //printf("Done with memcpy!\n");
+    //printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
+    //printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
+    return sizes;
+}
+
+dim3** getGridsBlocksRaycasting(int device){
+    dim3 grid, block;
+    dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
+    sizes[0] = (dim3*) malloc(sizeof(dim3));
+    sizes[1] = (dim3*) malloc(sizeof(dim3));
+    //printf("Done assigning to size!\n");
+
+    //Hardcoding blockdim values (8^3 = 512 = DATA_DIM)
+    block.z = 8; grid.z = 8;
+    block.y = 8; grid.y = 8;
+    block.x = 8; grid.x = 8;
     //printf("Done assigning grid and block values!\n");
 
     memcpy(sizes[0], &grid, sizeof(dim3));

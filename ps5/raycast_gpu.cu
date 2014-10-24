@@ -31,6 +31,37 @@ __host__ __device__ float3 scale(float3 a, float b){
     return a;
 }
 
+// Trilinear interpolation
+__device__ float value_at(float3 pos, unsigned char* data){
+    if(!gpu_isPosInside(pos)){
+        return 0;
+    }
+
+    int x = floor(pos.x);
+    int y = floor(pos.y);
+    int z = floor(pos.z);
+
+    int x_u = ceil(pos.x);
+    int y_u = ceil(pos.y);
+    int z_u = ceil(pos.z);
+
+    float rx = pos.x - x;
+    float ry = pos.y - y;
+    float rz = pos.z - z;
+
+    float a0 = rx*data[gpu_getIndex(z,y,x)] + (1-rx)*data[gpu_getIndex(z,y,x_u)];
+    float a1 = rx*data[gpu_getIndex(z,y_u,x)] + (1-rx)*data[gpu_getIndex(z,y_u,x_u)];
+    float a2 = rx*data[gpu_getIndex(z_u,y,x)] + (1-rx)*data[gpu_getIndex(z_u,y,x_u)];
+    float a3 = rx*data[gpu_getIndex(z_u,y_u,x)] + (1-rx)*data[gpu_getIndex(z_u,y_u,x_u)];
+
+    float b0 = ry*a0 + (1-ry)*a1;
+    float b1 = ry*a2 + (1-ry)*a3;
+
+    float c0 = rz*b0 + (1-rz)*b1;
+
+    return c0;
+}
+
 __device__ int getBlockId_3D(){
     return blockIdx.x + (blockIdx.y*gridDim.x)
             + (blockIdx.z*gridDim.x*gridDim.y);
@@ -44,6 +75,11 @@ __device__ int getBlockThreadId_3D(){
 __device__ int gpu_getIndex(int3 pos){
     return pos.z*IMAGE_SIZE
         + pos.y*DATA_DIM + pos.x;
+}
+
+__device__ int gpu_getIndex(int z, int y, int x){
+    return z*IMAGE_SIZE
+        + y*DATA_DIM + x;
 }
 
 __device__ int getGlobalIdx_3D_3D(){
@@ -80,6 +116,13 @@ __device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
 }
 
 __device__ int gpu_isPosInside(int3 pos){
+    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
+    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
+    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+    return x && y && z;
+}
+
+__device__ int gpu_isPosInside(float3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
@@ -128,7 +171,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
 
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
-    dim3 **sizes = getGridAndBlockSize(0);
+    dim3 **sizes = getGridsBlocksGrowRegion(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaImage, *cudaRegion, *region;
 
@@ -180,6 +223,8 @@ unsigned char* grow_region_gpu(unsigned char* data){
 
 __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsigned char* region){
     int tid = getGlobalIdx_3D_3D();
+    int y = getBlockId_3D() - (IMAGE_DIM/2);
+    int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000,.y=1000,.z=1000};
@@ -214,7 +259,7 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
 
 unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     cudaEvent_t start, end;
-    dim3 **sizes = getGridAndBlockSize(0);
+    dim3 **sizes = getGridsBlocksRaycasting(0);
     unsigned char *cudaImage, *cudaRegion, *cudaData;
     unsigned char *image = (unsigned char*) malloc(imageSize);
     //printf("Done instantiating variables...\n");

@@ -1,4 +1,4 @@
-#include "raycast.h"
+#include "raycast.cuh"
 
 // Serial ray casting
 unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
