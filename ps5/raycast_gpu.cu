@@ -175,7 +175,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaData, *cudaRegion, *region;
 
-    region = (unsigned char*) malloc(dataSize);
+    region = (unsigned char*) calloc(dataSize);
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
@@ -268,7 +268,7 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     gEC(cudaMalloc(&cudaData, dataSize));
     gEC(cudaMalloc(&cudaImage, imageSize));
     gEC(cudaMalloc(&cudaRegion, dataSize));
-    gEC(cudaMemset(cudaImage, 0, dataSize));
+    gEC(cudaMemset(cudaImage, 0, imageSize));
     //printf("Done mallocing on CUDA device!\n");
 
     //Copy data and region over to device
