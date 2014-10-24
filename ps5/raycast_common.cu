@@ -32,7 +32,7 @@ int3 pop(stack_t* stack){
     return stack->pixels[stack->size];
 }
 
-/*// float3 utilities
+// float3 utilities
 float3 cross(float3 a, float3 b){
     float3 c;
     c.x = a.y*b.z - a.z*b.y;
@@ -65,7 +65,7 @@ float3 scale(float3 a, float b){
     a.z *= b;
 
     return a;
-}*/
+}
 
 void setCudaDevice(cudaDeviceProp* p, int device){
     gEC(cudaSetDevice(device));
@@ -240,7 +240,7 @@ int index(int z, int y, int x){
     return z * DATA_DIM*DATA_DIM + y*DATA_DIM + x;
 }
 
-/*// Trilinear interpolation
+// Trilinear interpolation
 float value_at(float3 pos, unsigned char* data){
     if(!inside(pos)){
         return 0;
@@ -269,7 +269,7 @@ float value_at(float3 pos, unsigned char* data){
     float c0 = rz*b0 + (1-rz)*b1;
 
     return c0;
-}*/
+}
 
 // Check if two values are similar, threshold can be changed.
 int similar(unsigned char* data, int3 a, int3 b){

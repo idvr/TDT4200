@@ -227,7 +227,7 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
     int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
-    float3 camera = {.x=1000,.y=1000,.z=1000};
+    float3 camera = {.x=1000, .y=1000, .z=1000};
 
     float3 right = cross(forward, z_axis);
     float3 up = cross(right, forward);

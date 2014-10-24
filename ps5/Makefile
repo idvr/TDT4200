@@ -37,10 +37,9 @@ all_local: clean all
 	optirun ./run_gpu_texture
 	optirun ./run_gpu_combined
 
-cpu: bmp.cpp raycast_common.cu raycast_cpu.cu
-	nvcc bmp.cpp raycast_common.cu raycast_cpu.cu \
+cpu: bmp.cpp raycast_cpu.cu
+	nvcc bmp.cpp raycast_cpu.cu -o run_cpu \
 	-lcudart -g -G -use_fast_math -lm -arch=sm_20 \
-	-o run_cpu
 
 gpu: bmp.cpp raycast_common.cu raycast_gpu.cu
 	nvcc bmp.cpp raycast_common.cu raycast_gpu.cu \
