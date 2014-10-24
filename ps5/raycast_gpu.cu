@@ -283,7 +283,7 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
 
     //Copy image back from device
     createCudaEvent(&start);
-    gEC(cudaMemcpy(cudaImage, image, imageSize, cudaMemcpyDeviceToHost));
+    gEC(cudaMemcpy(image, cudaImage, imageSize, cudaMemcpyDeviceToHost));
     createCudaEvent(&end);
     printf("Copying image from device took %f ms\n\n",
         getCudaEventTime(start, end));
