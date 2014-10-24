@@ -268,7 +268,7 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     gEC(cudaMalloc(&cudaData, dataSize));
     gEC(cudaMalloc(&cudaImage, imageSize));
     gEC(cudaMalloc(&cudaRegion, dataSize));
-    gEC(cudaMemset(cudaData, 0, dataSize));
+    gEC(cudaMemset(cudaImage, 0, dataSize));
     //printf("Done mallocing on CUDA device!\n");
 
     //Copy data and region over to device
