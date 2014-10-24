@@ -243,7 +243,6 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
             if (inside(pos)     &&
                 !region[pos_id] &&
                 abs(data[tid] - data[pos_id]) < 1){
-                //printf("Found neighbour! changed: %d\n", (*changed)+1);
                 region[pos_id] = NEW_VOX;
                 *changed = 1;
             }
@@ -333,12 +332,13 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
     ray = normalize(ray);
     float3 pos = camera;
 
-
-    for (int i = 0; 255 > image[tid] && (5000 > i); ++i){
+    float color = 0;
+    for (int i = 0; 255 > color && (5000 > i); ++i){
         pos = add(pos, scale(ray, step_size));
         int r = value_at(pos, region);
-        image[tid] += value_at(pos, data)*(0.01+r);
+        color += value_at(pos, data)*(0.01+r);
     }
+    image[tid] = min(color, 255.f);
 
     return;
 }
