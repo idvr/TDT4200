@@ -44,20 +44,20 @@ void push(stack_t* stack, int3 p);
 
 //Functions accessible by kernels
 __device__ int getBlockId_3D();
-__device__ int inndex(int3 pos);
-__device__ int inside(int3 pos);
-__device__ int inside(float3 pos);
 __device__ int getGlobalIdx_3D_3D();
 __device__ int getBlockThreadId_3D();
-__device__ float3 normalize(float3 v);
-__device__ int index(int z, int y, int x);
-__device__ float3 add(float3 a, float3 b);
-__device__ float3 scale(float3 a, float b);
-__device__ float3 cross(float3 a, float3 b);
-__device__ int3 getGlobalPos(int globalThreadId);
-__device__ int similar(unsigned char* data, int3 a, int3 b);
+__host__ __device__ int index(int3 pos);
+__host__ __device__ int inside(int3 pos);
+__host__ __device__ int inside(float3 pos);
+__host__ __device__ float3 normalize(float3 v);
+__host__ __device__ int index(int z, int y, int x);
+__host__ __device__ float3 add(float3 a, float3 b);
+__host__ __device__ float3 scale(float3 a, float b);
+__host__ __device__ float3 cross(float3 a, float3 b);
+__host__ __device__ int3 getGlobalPos(int globalThreadId);
+__host__ __device__ int similar(unsigned char* data, int3 a, int3 b);
 //Trilinear interpolation
-__device__ float value_at(float3 post, unsigned char* data);
+__host__ __device__ float value_at(float3 post, unsigned char* data);
 
 //Print/get properties of Nvidia CUDA card
 void print_properties();

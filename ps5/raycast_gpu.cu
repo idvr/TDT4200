@@ -1,7 +1,7 @@
 #include "raycast.cuh"
 
 // float3 utilities
-__device__ float3 cross(float3 a, float3 b){
+__host__ __device__ float3 cross(float3 a, float3 b){
     float3 c;
     c.x = a.y*b.z - a.z*b.y;
     c.y = a.z*b.x - a.x*b.z;
@@ -9,7 +9,7 @@ __device__ float3 cross(float3 a, float3 b){
     return c;
 }
 
-__device__ float3 normalize(float3 v){
+__host__ __device__ float3 normalize(float3 v){
     float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x /= l;
     v.y /= l;
@@ -17,14 +17,14 @@ __device__ float3 normalize(float3 v){
     return v;
 }
 
-__device__ float3 add(float3 a, float3 b){
+__host__ __device__ float3 add(float3 a, float3 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return a;
 }
 
-__device__ float3 scale(float3 a, float b){
+__host__ __device__ float3 scale(float3 a, float b){
     a.x *= b;
     a.y *= b;
     a.z *= b;
@@ -32,7 +32,7 @@ __device__ float3 scale(float3 a, float b){
 }
 
 // Trilinear interpolation
-__device__ float value_at(float3 pos, unsigned char* data){
+__host__ __device__ float value_at(float3 pos, unsigned char* data){
     if(!inside(pos)){
         return 0;
     }
@@ -72,12 +72,12 @@ __device__ int getBlockThreadId_3D(){
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
 
-__device__ int index(int3 pos){
+__host__ __device__ int index(int3 pos){
     return pos.z*IMAGE_SIZE
         + pos.y*DATA_DIM + pos.x;
 }
 
-__device__ int index(int z, int y, int x){
+__host__ __device__ int index(int z, int y, int x){
     return z*IMAGE_SIZE
         + y*DATA_DIM + x;
 }
@@ -89,7 +89,7 @@ __device__ int getGlobalIdx_3D_3D(){
     return threadId;
 }
 
-__device__ int3 getGlobalPos(int globalThreadId){
+__host__ __device__ int3 getGlobalPos(int globalThreadId){
     int3 pos = {
         .x = globalThreadId,
             .y = 0, .z = 0};
@@ -109,24 +109,119 @@ __device__ int3 getGlobalPos(int globalThreadId){
     return pos;
 }
 
-__device__ int similar(unsigned char* data, int3 a, int3 b){
+__host__ __device__ int similar(unsigned char* data, int3 a, int3 b){
     unsigned char va = data[index(a)];
     unsigned char vb = data[index(b)];
     return (abs(va-vb) < 1);
 }
 
-__device__ int inside(int3 pos){
+__host__ __device__ int inside(int3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
 }
 
-__device__ int inside(float3 pos){
+__host__ __device__ int inside(float3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
+}
+
+// Serial ray casting
+unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
+    unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_SIZE);
+
+    // Camera/eye position, and direction of viewing. These can be changed to look
+    // at the volume from different angles.
+    float3 camera = {.x=1000,.y=1000,.z=1000};
+    float3 forward = {.x=-1, .y=-1, .z=-1};
+    float3 z_axis = {.x=0, .y=0, .z = 1};
+
+    // Finding vectors aligned with the axis of the image
+    float3 right = cross(forward, z_axis);
+    float3 up = cross(right, forward);
+
+    // Creating unity length vectors
+    forward = normalize(forward);
+    right = normalize(right);
+    up = normalize(up);
+
+    float fov = 3.14/4;
+    float pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
+    float step_size = 0.5;
+
+    // For each pixel
+    for(int y = -(IMAGE_DIM/2); y < (IMAGE_DIM/2); y++){
+        for(int x = -(IMAGE_DIM/2); x < (IMAGE_DIM/2); x++){
+
+            // Find the ray for this pixel
+            float3 screen_center = add(camera, forward);
+            float3 ray = add(add(screen_center, scale(right, x*pixel_width)), scale(up, y*pixel_width));
+            ray = add(ray, scale(camera, -1));
+            ray = normalize(ray);
+            float3 pos = camera;
+
+            // Move along the ray, we stop if the color becomes completely white,
+            // or we've done 5000 iterations (5000 is a bit arbitrary, it needs
+            // to be big enough to let rays pass through the entire volume)
+            int i = 0;
+            float color = 0;
+            while(color < 255 && i < 5000){
+                i++;
+                pos = add(pos, scale(ray, step_size));          // Update position
+                int r = value_at(pos, region);                  // Check if we're in the region
+                color += value_at(pos, data)*(0.01 + r) ;       // Update the color based on data value, and if we're in the region
+            }
+
+            // Write final color to image
+            image[(y+(IMAGE_DIM/2)) * IMAGE_DIM + (x+(IMAGE_DIM/2))] = color > 255 ? 255 : color;
+        }
+        printf("Done with image row #%d\n", y+(IMAGE_DIM/2));
+    }
+
+    return image;
+}
+
+// Serial region growing, same algorithm as in assignment 2
+unsigned char* grow_region_serial(unsigned char* data){
+    unsigned char* region = (unsigned char*)calloc(sizeof(unsigned char), DATA_DIM*DATA_DIM*DATA_DIM);
+
+    stack_t* stack = new_stack();
+
+    int3 seed = {.x=50, .y=300, .z=300};
+    push(stack, seed);
+    region[seed.z *DATA_DIM*DATA_DIM + seed.y*DATA_DIM + seed.x] = 1;
+
+    int dx[6] = {-1,1,0,0,0,0};
+    int dy[6] = {0,0,-1,1,0,0};
+    int dz[6] = {0,0,0,0,-1,1};
+
+    while(stack->size > 0){
+        int3 pixel = pop(stack);
+        for(int n = 0; n < 6; n++){
+            int3 candidate = pixel;
+            candidate.x += dx[n];
+            candidate.y += dy[n];
+            candidate.z += dz[n];
+
+            if(!inside(candidate)){
+                continue;
+            }
+
+            if(region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x]){
+                continue;
+            }
+
+            if(similar(data, pixel, candidate)){
+                push(stack, candidate);
+                region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x] = 1;
+            }
+        }
+    }
+
+    return region;
 }
 
 __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
@@ -137,8 +232,6 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
     int3 pixel = getGlobalPos(tid);
 
     if(NEW_VOX == region[tid]){
-        //printf("Entered first if!\n");
-        //printf("tid: .x=%d, .y=%d, .z=%d\n", pixel.x, pixel.y, pixel.z);
         int3 pos; int pos_id;
         region[tid] = VISITED;
         for (int i = 0; i < 6; ++i){
@@ -147,22 +240,15 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
             pos.y += dy[i];
             pos.z += dz[i];
             pos_id = index(pos);
-            if (//Check that pos pixel is inside image/region
-                inside(pos) &&
-                //Check that it's not already been "discovered"
+            if (inside(pos)     &&
                 !region[pos_id] &&
-                //Check that the corresponding color values actually match
                 abs(data[tid] - data[pos_id]) < 1){
                 //printf("Found neighbour! changed: %d\n", (*changed)+1);
                 region[pos_id] = NEW_VOX;
-                //atomicAdd(changed, 1);
                 *changed = 1;
             }
         }
     }
-
-    //__syncthreads();
-    //*changed = 1;
     return;
 }
 
@@ -175,7 +261,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaData, *cudaRegion, *region;
 
-    region = (unsigned char*) calloc(dataSize);
+    region = (unsigned char*) calloc(sizeof(unsigned char), DATA_SIZE);
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
@@ -304,13 +390,14 @@ int main(int argc, char** argv){
 
     printf("Done creating data\n");
 
-
-    unsigned char* region = grow_region_gpu(data);
+    //unsigned char* region = gro_region_gpu(data);
+    unsigned char* region = grow_region_serial(data);
     //printf("grow_region_gpu() took %f ms\n", ms_time);
 
     printf("Done creating region\n");
 
     unsigned char* image = raycast_gpu(data, region);
+    //unsigned char* image = raycast_serial(data, region);
     /*printf("raycast_gpu() took %f ms\n", ms_time);*/
 
     printf("Done creating image\n");
