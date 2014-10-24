@@ -390,7 +390,7 @@ int main(int argc, char** argv){
 
     printf("Done creating data\n");
 
-    //unsigned char* region = gro_region_gpu(data);
+    //unsigned char* region = grow_region_gpu(data);
     unsigned char* region = grow_region_serial(data);
     //printf("grow_region_gpu() took %f ms\n", ms_time);
 
@@ -402,7 +402,7 @@ int main(int argc, char** argv){
 
     printf("Done creating image\n");
 
-    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");
+    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
 
     printf("Done with program\n");
     return 0;

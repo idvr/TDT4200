@@ -6,9 +6,12 @@
 .PHONY: install
 
 #Whatever is currently being worked with
-target:= gpu #Edit this as project progresses
+target:=gpu
 
 all: cpu gpu gpu_shared gpu_texture gpu_combined
+
+get_result:
+	scp gpu:~/tdt4200/ps5/raycast_$(target)_out.bmp ./
 
 memcheck: $(target)
 	cuda-memcheck optirun ./run_$(target)
