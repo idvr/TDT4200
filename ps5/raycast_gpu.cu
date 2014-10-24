@@ -1,7 +1,7 @@
 #include "raycast.cuh"
 
 // float3 utilities
-__host__ __device__ float3 cross(float3 a, float3 b){
+__device__ float3 cross(float3 a, float3 b){
     float3 c;
     c.x = a.y*b.z - a.z*b.y;
     c.y = a.z*b.x - a.x*b.z;
@@ -9,7 +9,7 @@ __host__ __device__ float3 cross(float3 a, float3 b){
     return c;
 }
 
-__host__ __device__ float3 normalize(float3 v){
+__device__ float3 normalize(float3 v){
     float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x /= l;
     v.y /= l;
@@ -17,14 +17,14 @@ __host__ __device__ float3 normalize(float3 v){
     return v;
 }
 
-__host__ __device__ float3 add(float3 a, float3 b){
+__device__ float3 add(float3 a, float3 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return a;
 }
 
-__host__ __device__ float3 scale(float3 a, float b){
+__device__ float3 scale(float3 a, float b){
     a.x *= b;
     a.y *= b;
     a.z *= b;
@@ -33,7 +33,7 @@ __host__ __device__ float3 scale(float3 a, float b){
 
 // Trilinear interpolation
 __device__ float value_at(float3 pos, unsigned char* data){
-    if(!gpu_isPosInside(pos)){
+    if(!inside(pos)){
         return 0;
     }
 
@@ -49,10 +49,10 @@ __device__ float value_at(float3 pos, unsigned char* data){
     float ry = pos.y - y;
     float rz = pos.z - z;
 
-    float a0 = rx*data[gpu_getIndex(z,y,x)] + (1-rx)*data[gpu_getIndex(z,y,x_u)];
-    float a1 = rx*data[gpu_getIndex(z,y_u,x)] + (1-rx)*data[gpu_getIndex(z,y_u,x_u)];
-    float a2 = rx*data[gpu_getIndex(z_u,y,x)] + (1-rx)*data[gpu_getIndex(z_u,y,x_u)];
-    float a3 = rx*data[gpu_getIndex(z_u,y_u,x)] + (1-rx)*data[gpu_getIndex(z_u,y_u,x_u)];
+    float a0 = rx*data[index(z,y,x)] + (1-rx)*data[index(z,y,x_u)];
+    float a1 = rx*data[index(z,y_u,x)] + (1-rx)*data[index(z,y_u,x_u)];
+    float a2 = rx*data[index(z_u,y,x)] + (1-rx)*data[index(z_u,y,x_u)];
+    float a3 = rx*data[index(z_u,y_u,x)] + (1-rx)*data[index(z_u,y_u,x_u)];
 
     float b0 = ry*a0 + (1-ry)*a1;
     float b1 = ry*a2 + (1-ry)*a3;
@@ -72,12 +72,12 @@ __device__ int getBlockThreadId_3D(){
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
 
-__device__ int gpu_getIndex(int3 pos){
+__device__ int index(int3 pos){
     return pos.z*IMAGE_SIZE
         + pos.y*DATA_DIM + pos.x;
 }
 
-__device__ int gpu_getIndex(int z, int y, int x){
+__device__ int index(int z, int y, int x){
     return z*IMAGE_SIZE
         + y*DATA_DIM + x;
 }
@@ -109,20 +109,20 @@ __device__ int3 getGlobalPos(int globalThreadId){
     return pos;
 }
 
-__device__ int gpu_similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[gpu_getIndex(a)];
-    unsigned char vb = data[gpu_getIndex(b)];
+__device__ int similar(unsigned char* data, int3 a, int3 b){
+    unsigned char va = data[index(a)];
+    unsigned char vb = data[index(b)];
     return (abs(va-vb) < 1);
 }
 
-__device__ int gpu_isPosInside(int3 pos){
+__device__ int inside(int3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
 }
 
-__device__ int gpu_isPosInside(float3 pos){
+__device__ int inside(float3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
@@ -146,9 +146,9 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
             pos.x += dx[i];
             pos.y += dy[i];
             pos.z += dz[i];
-            pos_id = gpu_getIndex(pos);
+            pos_id = index(pos);
             if (//Check that pos pixel is inside image/region
-                gpu_isPosInside(pos) &&
+                inside(pos) &&
                 //Check that it's not already been "discovered"
                 !region[pos_id] &&
                 //Check that the corresponding color values actually match
@@ -315,7 +315,7 @@ int main(int argc, char** argv){
 
     printf("Done creating image\n");
 
-    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
+    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");
 
     printf("Done with program\n");
     return 0;

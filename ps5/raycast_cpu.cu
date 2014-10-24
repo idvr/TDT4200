@@ -229,7 +229,7 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
             // Write final color to image
             image[(y+(IMAGE_DIM/2)) * IMAGE_DIM + (x+(IMAGE_DIM/2))] = color > 255 ? 255 : color;
         }
-        printf("Done with one row of image...\n");
+        printf("Done with image row #%d\n", y+(IMAGE_DIM/2));
     }
 
     return image;
