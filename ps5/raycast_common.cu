@@ -32,6 +32,45 @@ int3 pop(stack_t* stack){
     return stack->pixels[stack->size];
 }
 
+stack2_t* new_time_stack(int start_size){
+    stack2_t* stack = (stack2_t*) malloc(sizeof(stack2_t));
+    stack->size = 0;
+    stack->buffer_size = start_size;
+    stack->buffer = (float*) malloc(sizeof(float)*start_size);
+    return stack;
+}
+
+int push(stack2_t* stack, float input){
+    if(stack->buffer_size == stack->size){
+        stack->buffer_size *= 2;
+        float* temp = stack->buffer;
+        stack->buffer = (float*) malloc(sizeof(float)*stack->buffer_size);
+        memcpy(stack->buffer, temp, sizeof(sizeof(float)*stack->buffer_size/2));
+        free(temp);
+    }
+    stack->buffer[stack->size] = input;
+    stack->size += 1;
+    return stack->size-1;
+}
+
+float pop(stack2_t* stack){
+    stack->size -= 1;
+    return stack->buffer[stack->size];
+}
+
+float peek(stack2_t* stack, int pos){
+    if(0 <= pos && pos < stack->size){
+        return stack->buffer[pos];
+    } else{
+        return 0.0/0.0;
+    }
+}
+
+void destroy(stack2_t *stack){
+    free(stack->buffer);
+    free(stack);
+}
+
 void setCudaDevice(cudaDeviceProp* p, int device){
     gEC(cudaSetDevice(device));
     gEC(cudaGetDeviceProperties(p, device));

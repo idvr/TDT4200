@@ -132,18 +132,12 @@ __host__ __device__ int inside(float3 pos){
 // Serial ray casting
 unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
     unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_SIZE);
-
-    // Camera/eye position, and direction of viewing. These can be changed to look
-    // at the volume from different angles.
     float3 camera = {.x=1000,.y=1000,.z=1000};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 z_axis = {.x=0, .y=0, .z = 1};
 
-    // Finding vectors aligned with the axis of the image
     float3 right = cross(forward, z_axis);
     float3 up = cross(right, forward);
-
-    // Creating unity length vectors
     forward = normalize(forward);
     right = normalize(right);
     up = normalize(up);
@@ -152,35 +146,29 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
     float pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
     float step_size = 0.5;
 
-    // For each pixel
+    int cntr = 0;
     for(int y = -(IMAGE_DIM/2); y < (IMAGE_DIM/2); y++){
         for(int x = -(IMAGE_DIM/2); x < (IMAGE_DIM/2); x++){
-
-            // Find the ray for this pixel
             float3 screen_center = add(camera, forward);
             float3 ray = add(add(screen_center, scale(right, x*pixel_width)), scale(up, y*pixel_width));
             ray = add(ray, scale(camera, -1));
             ray = normalize(ray);
             float3 pos = camera;
-
-            // Move along the ray, we stop if the color becomes completely white,
-            // or we've done 5000 iterations (5000 is a bit arbitrary, it needs
-            // to be big enough to let rays pass through the entire volume)
             int i = 0;
             float color = 0;
             while(color < 255 && i < 5000){
                 i++;
-                pos = add(pos, scale(ray, step_size));          // Update position
-                int r = value_at(pos, region);                  // Check if we're in the region
-                color += value_at(pos, data)*(0.01 + r) ;       // Update the color based on data value, and if we're in the region
+                pos = add(pos, scale(ray, step_size));   // Update position
+                int r = value_at(pos, region);           // Check if we're in the region
+                color += value_at(pos, data)*(0.01 + r) ;// Update the color based on data value, and if we're in the region
             }
-
-            // Write final color to image
             image[(y+(IMAGE_DIM/2)) * IMAGE_DIM + (x+(IMAGE_DIM/2))] = color > 255 ? 255 : color;
         }
-        printf("Done with image row #%d\n", y+(IMAGE_DIM/2));
+        cntr++;
+        if (0 == cntr%10){
+            printf("Done with image row #%d\n", y+(IMAGE_DIM/2));
+        }
     }
-
     return image;
 }
 
@@ -256,6 +244,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
 
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
+    stack2_t *time_stack = new_time_stack(175);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
     unsigned char *cudaData, *cudaRegion, *region;
@@ -280,18 +269,21 @@ unsigned char* grow_region_gpu(unsigned char* data){
     printf("Copying data and region to device took %f ms\n\n",
         getCudaEventTime(start, end));
 
-    createCudaEvent(&start);
     for (int i = 0; changed && (175 > i); ++i){
-        //printf("\nEntered #%d kernel outer-loop\n", i+1);
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
-        //printf("Finished changed memcpy to device!\n");
+        createCudaEvent(&start);
         region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&cudaData[0], &cudaRegion[0], gpu_changed);
+        createCudaEvent(&end);
+        push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-        //printf("changed: %d\n", *changed);
-        //printf("Finished iteration %d of kernel outer-loop!\n", i+1);
     }
-    createCudaEvent(&end);
-    printf("Kernel calls took %f ms\n\n", getCudaEventTime(start, end));
+
+    float sum = 0;
+    for (int i = 0; i < time_stack->size; ++i){
+        sum += peek(time_stack, i);
+    }
+    printf("%d kernel calls took a sum total of %f ms\n\n", time_stack->size, sum);
+    destroy(time_stack);
 
     //Copy region from device
     createCudaEvent(&start);
@@ -365,7 +357,10 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     printf("Copying data and region to device took %f ms\n\n",
         getCudaEventTime(start, end));
 
+    createCudaEvent(&start);
     raycast_kernel<<<*sizes[0], *sizes[1]>>>(cudaData, cudaImage, cudaRegion);
+    createCudaEvent(&end);
+    printf("Calling kernel took %f ms\n", getCudaEventTime(start, end));
 
     //Copy image back from device
     createCudaEvent(&start);
@@ -396,8 +391,8 @@ int main(int argc, char** argv){
 
     printf("Done creating region\n");
 
-    unsigned char* image = raycast_gpu(data, region);
-    //unsigned char* image = raycast_serial(data, region);
+    //unsigned char* image = raycast_gpu(data, region);
+    unsigned char* image = raycast_serial(data, region);
     /*printf("raycast_gpu() took %f ms\n", ms_time);*/
 
     printf("Done creating image\n");

@@ -37,10 +37,21 @@ typedef struct{
     int3* pixels;
 } stack_t;
 
+typedef struct{
+    int size;
+    int buffer_size;
+    float* buffer;
+} stack2_t;
+
 //General support functions
 stack_t* new_stack();
 int3 pop(stack_t* stack);
 void push(stack_t* stack, int3 p);
+float pop(stack2_t* stack);
+void destroy(stack2_t *stack);
+float peek(stack2_t* stack, int pos);
+int push(stack2_t* stack, float input);
+stack2_t* new_time_stack(int start_size);
 
 //Functions accessible by kernels
 __device__ int getBlockId_3D();
