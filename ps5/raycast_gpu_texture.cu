@@ -244,7 +244,7 @@ __global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
 uchar* grow_region_gpu(uchar* data){
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
-    stack2_t *time_stack = new_time_stack(175);
+    stack2_t *time_stack = new_time_stack(256);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
     uchar *cudaData, *cudaRegion, *region;
@@ -266,10 +266,10 @@ uchar* grow_region_gpu(uchar* data){
     gEC(cudaMemcpy(cudaData, data, dataSize, cudaMemcpyHostToDevice));
     gEC(cudaMemcpy(cudaRegion, region, dataSize, cudaMemcpyHostToDevice));
     createCudaEvent(&end);
-    printf("Copying data and region to device took %f ms\n",
+    printf("Copying data and region to device took %.4f ms\n",
         getCudaEventTime(start, end));
 
-    for (int i = 0; changed && (175 > i); ++i){
+    for (int i = 0; changed && (256 > i); ++i){
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
         region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&cudaData[0], &cudaRegion[0], gpu_changed);
@@ -282,14 +282,14 @@ uchar* grow_region_gpu(uchar* data){
     for (int i = 0; i < time_stack->size; ++i){
         sum += peek(time_stack, i);
     }
-    printf("%d kernel calls took a sum total of %f ms\n", time_stack->size, sum);
+    printf("%d kernel calls took a sum total of %.4f ms\n", time_stack->size, sum);
     destroy(time_stack);
 
     //Copy region from device
     createCudaEvent(&start);
     gEC(cudaMemcpy(region, cudaRegion, dataSize, cudaMemcpyDeviceToHost));
     createCudaEvent(&end);
-    printf("Copying region from device took %f ms\n", getCudaEventTime(start, end));
+    printf("Copying region from device took %.4f ms\n", getCudaEventTime(start, end));
 
     gEC(cudaFree(cudaData));
     gEC(cudaFree(cudaRegion));
@@ -351,19 +351,19 @@ uchar* raycast_gpu(uchar* data, uchar* region){
     gEC(cudaMemcpy(cudaData, data, dataSize, cudaMemcpyHostToDevice));
     gEC(cudaMemcpy(cudaRegion, region, dataSize, cudaMemcpyHostToDevice));
     createCudaEvent(&end);
-    printf("Copying data and region to device took %f ms\n\n",
+    printf("Copying data and region to device took %.4f ms\n\n",
         getCudaEventTime(start, end));
 
     createCudaEvent(&start);
     raycast_kernel<<<*sizes[0], *sizes[1]>>>(cudaData, cudaImage, cudaRegion);
     createCudaEvent(&end);
-    printf("Calling kernel took %f ms\n", getCudaEventTime(start, end));
+    printf("Calling kernel took %.4f ms\n", getCudaEventTime(start, end));
 
     //Copy image back from device
     createCudaEvent(&start);
     gEC(cudaMemcpy(image, cudaImage, imageSize, cudaMemcpyDeviceToHost));
     createCudaEvent(&end);
-    printf("Copying image from device took %f ms\n\n",
+    printf("Copying image from device took %.4f ms\n\n",
         getCudaEventTime(start, end));
 
     gEC(cudaFree(cudaData));
@@ -466,19 +466,19 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     gEC(cudaBindTextureToArray(data_texture, cudaData, channelDesc));
     gEC(cudaBindTextureToArray(region_texture, cudaRegion, channelDesc));
     createCudaEvent(&end);
-    printf("Copying and binding data and region to textures took %f ms\n",
+    printf("Copying and binding data and region to textures took %.4f ms\n",
         getCudaEventTime(start, end));
 
     createCudaEvent(&start);
     raycast_kernel_texture<<<*sizes[0], *sizes[1]>>>(cudaImage);
     createCudaEvent(&end);
-    printf("Calling kernel took %f ms\n", getCudaEventTime(start, end));
+    printf("Calling kernel took %.4f ms\n", getCudaEventTime(start, end));
 
     //Copy image back from device
     createCudaEvent(&start);
     gEC(cudaMemcpy(image, cudaImage, imageSize, cudaMemcpyDeviceToHost));
     createCudaEvent(&end);
-    printf("Copying image from device took %f ms\n",
+    printf("Copying image from device took %.4f ms\n",
         getCudaEventTime(start, end));
 
     gEC(cudaFree(cudaImage));
@@ -488,6 +488,7 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 }
 
 int main(int argc, char** argv){
+    printf("\nStarting program...\n\n");
     //print_properties();
 
     uchar* data = create_data();
