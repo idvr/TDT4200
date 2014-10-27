@@ -282,7 +282,7 @@ uchar* grow_region_gpu(uchar* data){
     for (int i = 0; i < time_stack->size; ++i){
         sum += peek(time_stack, i);
     }
-    //printf("%d kernel calls took a sum total of %f ms\n\n", time_stack->size, sum);
+    printf("%d kernel calls took a sum total of %f ms\n\n", time_stack->size, sum);
     destroy(time_stack);
 
     //Copy region from device
@@ -372,8 +372,50 @@ uchar* raycast_gpu(uchar* data, uchar* region){
     return image;
 }
 
-__global__ void raycast_kernel_texture(uchar* image){
+__device__ float valueAtData(float3 pos){
+    if (!inside(pos)){
+        return 0;
+    }
+    return tex3D(data_texture, pos.x, pos.y, pos.z);
+}
 
+__device__ float valueAtRegion(float3 pos){
+    if (!inside(pos)){
+        return 0;
+    }
+    return tex3D(region_texture, pos.x, pos.y, pos.z);
+}
+
+__global__ void raycast_kernel_texture(uchar* image){
+    int tid = getGlobalIdx_3D_3D();
+    int y = getBlockId_3D() - (IMAGE_DIM/2);
+    int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
+    float step_size = 0.5, fov = 3.14/4, color = 0,
+            pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
+    float3 z_axis = {.x=0, .y=0, .z = 1};
+    float3 forward = {.x=-1, .y=-1, .z=-1};
+    float3 camera = {.x=1000, .y=1000, .z=1000};
+
+    float3 right = cross(forward, z_axis);
+    float3 up = cross(right, forward);
+
+    up = normalize(up);
+    right = normalize(right);
+    forward = normalize(forward);
+
+    float3 screen_center = add(camera, forward);
+    float3 ray = add(add(screen_center,
+        scale(right, x*pixel_width)), scale(up, y*pixel_width));
+    ray = add(ray, scale(camera, -1));
+    ray = normalize(ray);
+    float3 pos = camera;
+
+    for (int i = 0; 255 > color && 5000 > i; ++i){
+        pos = add(pos, scale(ray, step_size));
+        int r = valueAtRegion(pos);
+        color += valueAtData(pos)*(0.01+r);
+    }
+    image[tid] = min(color, 255.0f);
 }
 
 uchar* raycast_gpu_texture(uchar* data, uchar* region){
@@ -393,14 +435,14 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     gEC(cudaMalloc3DArray(&cudaData, &channelDesc, volumeSize));
     gEC(cudaMalloc3DArray(&cudaRegion, &channelDesc, volumeSize));
 
-    //For uchar data
+    //For data
     copyData.dstArray = cudaData;
     copyData.extent = volumeSize;
     copyData.kind = cudaMemcpyHostToDevice;
     copyData.srcPtr = make_cudaPitchedPtr((void*)data,
         volumeSize.width*sizeof(uchar), volumeSize.width, volumeSize.height);
 
-    //For uchar region
+    //For region
     copyRegion.extent = volumeSize;
     copyRegion.dstArray = cudaRegion;
     copyRegion.kind = cudaMemcpyHostToDevice;
@@ -409,15 +451,15 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 
     data_texture.normalized = true;
     data_texture.filterMode = cudaFilterModeLinear;
-    data_texture.addressMode[0] = cudaAddressModeWrap;
-    data_texture.addressMode[1] = cudaAddressModeWrap;
-    data_texture.addressMode[2] = cudaAddressModeWrap;
+    data_texture.addressMode[0] = cudaAddressModeBorder;
+    data_texture.addressMode[1] = cudaAddressModeBorder;
+    data_texture.addressMode[2] = cudaAddressModeBorder;
 
     region_texture.normalized = true;
     region_texture.filterMode = cudaFilterModeLinear;
-    region_texture.addressMode[0] = cudaAddressModeWrap;
-    region_texture.addressMode[1] = cudaAddressModeWrap;
-    region_texture.addressMode[2] = cudaAddressModeWrap;
+    region_texture.addressMode[0] = cudaAddressModeBorder;
+    region_texture.addressMode[1] = cudaAddressModeBorder;
+    region_texture.addressMode[2] = cudaAddressModeBorder;
     printf("cuda variables/structs set up.\n");
 
     createCudaEvent(&start);
@@ -429,6 +471,22 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     printf("Copying and binding data and region to textures took %f ms\n",
         getCudaEventTime(start, end));
 
+    createCudaEvent(&start);
+    raycast_kernel_texture<<<*sizes[0], *sizes[1]>>>(cudaImage);
+    createCudaEvent(&end);
+    printf("Calling kernel took %f ms\n", getCudaEventTime(start, end));
+
+    //Copy image back from device
+    createCudaEvent(&start);
+    gEC(cudaMemcpy(image, cudaImage, imageSize, cudaMemcpyDeviceToHost));
+    createCudaEvent(&end);
+    printf("Copying image from device took %f ms\n\n",
+        getCudaEventTime(start, end));
+
+    gEC(cudaFree(cudaData));
+    gEC(cudaFree(cudaImage));
+    gEC(cudaFree(cudaRegion));
+
     return image;
 }
 
@@ -439,8 +497,8 @@ int main(int argc, char** argv){
     printf("Done creating data\n");
 
     //Serial version
-    uchar* region = grow_region_serial(data);
-    //uchar* region = grow_region_gpu(data);
+    //uchar* region = grow_region_serial(data);
+    uchar* region = grow_region_gpu(data);
     printf("Done creating region\n");
 
     //Serial version

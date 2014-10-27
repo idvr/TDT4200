@@ -64,6 +64,10 @@ stack2_t* new_time_stack(int start_size);
 __device__ int getBlockId_3D();
 __device__ int getGlobalIdx_3D_3D();
 __device__ int getBlockThreadId_3D();
+//Interpolation by CUDA
+__device__ float valueAtData(float3 pos);
+//Interpolation by CUDA
+__device__ float valueAtRegion(float3 pos);
 __host__ __device__ int index(int3 pos);
 __host__ __device__ int inside(int3 pos);
 __host__ __device__ int inside(float3 pos);
