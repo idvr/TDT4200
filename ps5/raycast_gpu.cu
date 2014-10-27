@@ -378,27 +378,23 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
 
 int main(int argc, char** argv){
     /*print_properties();
-
     printf("Done printing properties\n");*/
 
     unsigned char* data = create_data();
-
     printf("Done creating data\n");
 
     unsigned char* region = grow_region_gpu(data);
     //unsigned char* region = grow_region_serial(data);
     //printf("grow_region_gpu() took %f ms\n", ms_time);
-
     printf("Done creating region\n");
 
-    //unsigned char* image = raycast_gpu(data, region);
-    unsigned char* image = raycast_serial(data, region);
+    unsigned char* image = raycast_gpu(data, region);
+    //unsigned char* image = raycast_serial(data, region);
     /*printf("raycast_gpu() took %f ms\n", ms_time);*/
-
     printf("Done creating image\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_out.bmp");
-
     printf("Done with program\n");
+
     return 0;
 }
