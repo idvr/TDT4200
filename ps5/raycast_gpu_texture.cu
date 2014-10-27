@@ -439,14 +439,14 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     copyData.dstArray = cudaData;
     copyData.extent = volumeSize;
     copyData.kind = cudaMemcpyHostToDevice;
-    copyData.srcPtr = make_cudaPitchedPtr((void*)data,
+    copyData.srcPtr = make_cudaPitchedPtr(data,
         volumeSize.width*sizeof(uchar), volumeSize.width, volumeSize.height);
 
     //For region
     copyRegion.extent = volumeSize;
     copyRegion.dstArray = cudaRegion;
     copyRegion.kind = cudaMemcpyHostToDevice;
-    copyRegion.srcPtr = make_cudaPitchedPtr((void*)region,
+    copyRegion.srcPtr = make_cudaPitchedPtr(region,
         volumeSize.width*sizeof(uchar), volumeSize.width, volumeSize.height);
 
     data_texture.normalized = true;
@@ -460,7 +460,7 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     region_texture.addressMode[0] = cudaAddressModeBorder;
     region_texture.addressMode[1] = cudaAddressModeBorder;
     region_texture.addressMode[2] = cudaAddressModeBorder;
-    printf("cuda variables/structs set up.\n");
+    printf("Texture variables/structs set up.\n");
 
     createCudaEvent(&start);
     gEC(cudaMemcpy3D(&copyData));
