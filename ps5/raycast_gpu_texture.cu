@@ -376,14 +376,14 @@ __device__ float valueAtData(float3 pos){
     if (!inside(pos)){
         return 0.0;
     }
-    return tex3D(data_texture, pos.x, pos.y, pos.z);
+    return tex3D(data_texture, pos.x, pos.y, pos.z)*255.f;
 }
 
 __device__ float valueAtRegion(float3 pos){
     if (!inside(pos)){
         return 0.0;
     }
-    return tex3D(region_texture, pos.x, pos.y, pos.z);
+    return tex3D(region_texture, pos.x, pos.y, pos.z)*255.f;
 }
 
 __global__ void raycast_kernel_texture(uchar* image){
