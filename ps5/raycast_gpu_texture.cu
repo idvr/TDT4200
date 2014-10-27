@@ -32,7 +32,7 @@ __host__ __device__ float3 scale(float3 a, float b){
 }
 
 // Trilinear interpolation
-__host__ __device__ float value_at(float3 pos, unsigned char* data){
+__host__ __device__ float value_at(float3 pos, uchar* data){
     if(!inside(pos)){
         return 0;
     }
@@ -109,9 +109,9 @@ __host__ __device__ int3 getGlobalPos(int globalThreadId){
     return pos;
 }
 
-__host__ __device__ int similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[index(a)];
-    unsigned char vb = data[index(b)];
+__host__ __device__ int similar(uchar* data, int3 a, int3 b){
+    uchar va = data[index(a)];
+    uchar vb = data[index(b)];
     return (abs(va-vb) < 1);
 }
 
@@ -130,8 +130,8 @@ __host__ __device__ int inside(float3 pos){
 }
 
 // Serial ray casting
-unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
-    unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_SIZE);
+uchar* raycast_serial(uchar* data, uchar* region){
+    uchar* image = (uchar*)malloc(sizeof(uchar)*IMAGE_SIZE);
     float3 camera = {.x=1000,.y=1000,.z=1000};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 z_axis = {.x=0, .y=0, .z = 1};
@@ -173,8 +173,8 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
 }
 
 // Serial region growing, same algorithm as in assignment 2
-unsigned char* grow_region_serial(unsigned char* data){
-    unsigned char* region = (unsigned char*)calloc(sizeof(unsigned char), DATA_DIM*DATA_DIM*DATA_DIM);
+uchar* grow_region_serial(uchar* data){
+    uchar* region = (uchar*)calloc(sizeof(uchar), DATA_DIM*DATA_DIM*DATA_DIM);
 
     stack_t* stack = new_stack();
 
@@ -212,7 +212,7 @@ unsigned char* grow_region_serial(unsigned char* data){
     return region;
 }
 
-__global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
+__global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
@@ -239,15 +239,15 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
     return;
 }
 
-unsigned char* grow_region_gpu(unsigned char* data){
+uchar* grow_region_gpu(uchar* data){
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
     stack2_t *time_stack = new_time_stack(175);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
-    unsigned char *cudaData, *cudaRegion, *region;
+    uchar *cudaData, *cudaRegion, *region;
 
-    region = (unsigned char*) calloc(sizeof(unsigned char), DATA_SIZE);
+    region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
@@ -296,7 +296,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     return region;
 }
 
-__global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsigned char* region){
+__global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
     int tid = getGlobalIdx_3D_3D();
     int y = getBlockId_3D() - (IMAGE_DIM/2);
     int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
@@ -330,11 +330,11 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
     return;
 }
 
-unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
+uchar* raycast_gpu(uchar* data, uchar* region){
     cudaEvent_t start, end;
     dim3 **sizes = getGridsBlocksRaycasting(0);
-    unsigned char *cudaImage, *cudaRegion, *cudaData;
-    unsigned char *image = (unsigned char*) malloc(imageSize);
+    uchar *cudaImage, *cudaRegion, *cudaData;
+    uchar *image = (uchar*) malloc(imageSize);
 
     //Malloc image++ on cuda device
     gEC(cudaMalloc(&cudaData, dataSize));
@@ -369,29 +369,72 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     return image;
 }
 
-__global__ void raycast_kernel_texture(unsigned char* image){
+__global__ void raycast_kernel_texture(uchar* image){
 
 }
 
-unsigned char* raycast_gpu_texture(unsigned char* data, unsigned char* region){
-    return NULL;
+uchar* raycast_gpu_texture(uchar* data, uchar* region){
+    printf("Entered gpu_texture()\n");
+    cudaEvent_t start, end;
+    uchar *cudaRegion;
+    cudaArray *cudaData, *cudaRegion;
+    dim3 **sizes = getGridsBlocksRaycasting(0);
+    uchar *image = (uchar*) malloc(imageSize);
+    cudaMemcpy3DParms copyData = {0}, copyRegion = {0};
+    const cudaExtent volumeSize = make_cudaExtent(DATA_DIM, DATA_DIM, DATA_DIM);
+    cudaChannelFormatDesc channelDesc = cudaCreateChannelDesc<uchar>();
+    printf("Finished creating variables.\n");
+
+    gEC(cudaMalloc(&cudaImage, imageSize));
+    gEC(cudaMemset(cudaImage, 0, imageSize));
+    gEC(cudaMalloc3DArray(&cudaData, &channelDesc, volumeSize));
+    gEC(cudaMalloc3DArray(&cudaRegion, &channelDesc, volumeSize));
+
+    //For uchar data
+    copyData.dstArray = cudaData;
+    copyData.extent = volumeSize;
+    copyData.kind = cudaMemcpyHostToDevice;
+    copyData.srcPtr = make_cudaPitchedPtr((void*)data, volumeSize.with*sizeof(uchar), volumeSize.with, volumeSize.height);
+
+    //For uchar region
+    copyRegion.extent = volumeSize;
+    copyRegion.dstArray = cudaRegion;
+    copyRegion.kind = cudaMemcpyHostToDevice;
+    copyRegion.srcPtr = make_cudaPitchedPtr((void*)region, volumeSize.with*sizeof(uchar), volumeSize.with, volumeSize.height);
+
+    data_texture.normalized = true;
+    data_texture.filterMode = cudaFilterModeLinear;
+    data_texture.addressMode[0] = cudaAddressModeWrap;
+    data_texture.addressMode[1] = cudaAddressModeWrap;
+    data_texture.addressMode[2] = cudaAddressModeWrap;
+    printf("cuda variables/structs set up.\n");
+
+    createCudaEvent(&start);
+    gEC(cudaMemcpy3D(&copyData));
+    gEC(cudaMemcpy3D(&copyRegion));
+    gEC(cudaBindTextureToArray(data_texture, cudaData, channelDesc));
+    gEC(cudaBindTextureToArray(region_texture, cudaRegion, channelDesc));
+    createCudaEvent(&end);
+    printf("Copying and binding data and region to textures took %f ms\n", getCudaEventTime(start, end));
+
+    return image;
 }
 
 int main(int argc, char** argv){
     //print_properties();
 
-    unsigned char* data = create_data();
+    uchar* data = create_data();
     printf("Done creating data\n");
 
     //Serial version
-    //unsigned char* region = grow_region_serial(data);
-    unsigned char* region = grow_region_gpu(data);
+    //uchar* region = grow_region_serial(data);
+    uchar* region = grow_region_gpu(data);
     printf("Done creating region\n");
 
     //Serial version
-    //unsigned char* image = raycast_serial(data, region);
-    unsigned char* image = raycast_gpu_texture(data, region);
-    //unsigned char* image = raycast_gpu(data, region);
+    //uchar* image = raycast_serial(data, region);
+    uchar* image = raycast_gpu_texture(data, region);
+    //uchar* image = raycast_gpu(data, region);
     printf("Done creating image\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_texture_out.bmp");

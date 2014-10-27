@@ -32,7 +32,7 @@ texture<uchar, cudaTextureType3D, cudaReadModeNormalizedFloat> region_texture;
 //Whether to abort when errors are found in above macro/function call
 #define ERROR_ABORT 1
 //For error-checking Nvidia CUDA calls
-#define gEC(inpt) {gpuErrorCheck(inpt)}
+#define gEC(inpt) gpuErrorCheck((inpt))
 #define gpuErrorCheck(inpt) {gpuAssert((inpt), __FILE__, __LINE__, ERROR_ABORT);}
 //Function prototype for the above two defines
 void gpuAssert(cudaError_t code, const char *file, int line, int abort);
