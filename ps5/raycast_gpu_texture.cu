@@ -449,13 +449,13 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     copyRegion.srcPtr = make_cudaPitchedPtr(region,
         volumeSize.width*sizeof(uchar), volumeSize.width, volumeSize.height);
 
-    data_texture.normalized = true;
+    data_texture.normalized = false;
     data_texture.filterMode = cudaFilterModeLinear;
     data_texture.addressMode[0] = cudaAddressModeBorder;
     data_texture.addressMode[1] = cudaAddressModeBorder;
     data_texture.addressMode[2] = cudaAddressModeBorder;
 
-    region_texture.normalized = true;
+    region_texture.normalized = false;
     region_texture.filterMode = cudaFilterModeLinear;
     region_texture.addressMode[0] = cudaAddressModeBorder;
     region_texture.addressMode[1] = cudaAddressModeBorder;
