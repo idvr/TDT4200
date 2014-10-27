@@ -6,7 +6,7 @@
 .PHONY: install
 
 #Whatever is currently being worked with
-target:=gpu
+target:=gpu_texture
 
 all: cpu gpu gpu_shared gpu_texture gpu_combined
 
@@ -14,10 +14,10 @@ get_result:
 	scp gpu:~/tdt4200/ps5/raycast_$(target)_out.bmp ./
 
 memcheck: $(target)
-	cuda-memcheck optirun ./run_$(target)
+	cuda-memcheck optirun ./run_$(target) --no-xorg --no-failsafe
 
 run_local: $(target)
-	optirun ./run_$(target)
+	optirun ./run_$(target) --no-xorg --no-failsafe
 #Shorthand for above
 rl: run_local
 
@@ -35,10 +35,10 @@ all_school: clean all
 
 all_local: clean all
 	optirun ./run_cpu
-	optirun ./run_gpu
-	optirun ./run_gpu_shared
-	optirun ./run_gpu_texture
-	optirun ./run_gpu_combined
+	optirun ./run_gpu --no-xorg --no-failsafe
+	optirun ./run_gpu_shared --no-xorg --no-failsafe
+	optirun ./run_gpu_texture --no-xorg --no-failsafe
+	optirun ./run_gpu_combined --no-xorg --no-failsafe
 
 cpu: bmp.cpp raycast_cpu.cu
 	nvcc bmp.cpp raycast_cpu.cu -o run_cpu \
@@ -51,15 +51,18 @@ gpu: bmp.cpp raycast_common.cu raycast_gpu.cu
 
 gpu_shared: bmp.cpp raycast_common.cu raycast_gpu_shared.cu
 	nvcc bmp.cpp raycast_common.cu raycast_gpu_shared.cu \
-	 -lcudart -g -G -use_fast_math -lm -arch=sm_20
+	 -lcudart -g -G -use_fast_math -lm -arch=sm_20 \
 	 -o run_gpu_shared
+
 gpu_texture: bmp.cpp raycast_common.cu raycast_gpu_texture.cu
 	nvcc bmp.cpp raycast_common.cu raycast_gpu_texture.cu \
-	 -lcudart -g -G -use_fast_math -lm -arch=sm_20
+	 -lcudart -g -G -use_fast_math -lm -arch=sm_20 \
 	 -o run_gpu_texture
+
 gpu_combined: bmp.cpp raycast_common.cu raycast_gpu_combined.cu
 	nvcc bmp.cpp raycast_common.cu raycast_gpu_combined.cu \
-	 -lcudart -g -G -use_fast_math -lm -arch=sm_20
+	 -lcudart -g -G -use_fast_math -lm -arch=sm_20 \
 	 -o run_gpu_combined
+
 clean:
 	rm -f run_* *.o
