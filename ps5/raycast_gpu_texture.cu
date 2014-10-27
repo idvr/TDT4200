@@ -415,7 +415,7 @@ __global__ void raycast_kernel_texture(uchar* image){
         int r = valueAtRegion(pos);
         color += valueAtData(pos)*(0.01+r);
     }
-    image[tid] = min(color, 255.0f);
+    image[tid] = min(color, 255.f);
 }
 
 uchar* raycast_gpu_texture(uchar* data, uchar* region){
@@ -483,10 +483,9 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     printf("Copying image from device took %f ms\n\n",
         getCudaEventTime(start, end));
 
-    gEC(cudaFree(cudaData));
+    gEC(cudaFreeArray(cudaData));
     gEC(cudaFree(cudaImage));
-    gEC(cudaFree(cudaRegion));
-
+    gEC(cudaFreeArray(cudaRegion));
     return image;
 }
 
