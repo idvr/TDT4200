@@ -150,7 +150,8 @@ uchar* raycast_serial(uchar* data, uchar* region){
     for(int y = -(IMAGE_DIM/2); y < (IMAGE_DIM/2); y++){
         for(int x = -(IMAGE_DIM/2); x < (IMAGE_DIM/2); x++){
             float3 screen_center = add(camera, forward);
-            float3 ray = add(add(screen_center, scale(right, x*pixel_width)), scale(up, y*pixel_width));
+            float3 ray = add(add(screen_center,
+                scale(right, x*pixel_width)), scale(up, y*pixel_width));
             ray = add(ray, scale(camera, -1));
             ray = normalize(ray);
             float3 pos = camera;
@@ -162,7 +163,8 @@ uchar* raycast_serial(uchar* data, uchar* region){
                 int r = value_at(pos, region);           // Check if we're in the region
                 color += value_at(pos, data)*(0.01 + r) ;// Update the color based on data value, and if we're in the region
             }
-            image[(y+(IMAGE_DIM/2)) * IMAGE_DIM + (x+(IMAGE_DIM/2))] = color > 255 ? 255 : color;
+            image[(y+(IMAGE_DIM/2))*IMAGE_DIM + (x+(IMAGE_DIM/2))]
+                                        = color > 255 ? 255 : color;
         }
         cntr++;
         if (0 == cntr%10){
@@ -280,7 +282,7 @@ uchar* grow_region_gpu(uchar* data){
     for (int i = 0; i < time_stack->size; ++i){
         sum += peek(time_stack, i);
     }
-    printf("%d kernel calls took a sum total of %f ms\n\n", time_stack->size, sum);
+    //printf("%d kernel calls took a sum total of %f ms\n\n", time_stack->size, sum);
     destroy(time_stack);
 
     //Copy region from device
@@ -315,7 +317,8 @@ __global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
 
     //Do the raycasting
     float3 screen_center = add(camera, forward);
-    float3 ray = add(add(screen_center, scale(right, x*pixel_width)), scale(up, y*pixel_width));
+    float3 ray = add(add(screen_center,
+        scale(right, x*pixel_width)), scale(up, y*pixel_width));
     ray = add(ray, scale(camera, -1));
     ray = normalize(ray);
     float3 pos = camera;
@@ -376,7 +379,7 @@ __global__ void raycast_kernel_texture(uchar* image){
 uchar* raycast_gpu_texture(uchar* data, uchar* region){
     printf("Entered gpu_texture()\n");
     cudaEvent_t start, end;
-    uchar *cudaRegion;
+    uchar *cudaImage;
     cudaArray *cudaData, *cudaRegion;
     dim3 **sizes = getGridsBlocksRaycasting(0);
     uchar *image = (uchar*) malloc(imageSize);
@@ -394,19 +397,27 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     copyData.dstArray = cudaData;
     copyData.extent = volumeSize;
     copyData.kind = cudaMemcpyHostToDevice;
-    copyData.srcPtr = make_cudaPitchedPtr((void*)data, volumeSize.with*sizeof(uchar), volumeSize.with, volumeSize.height);
+    copyData.srcPtr = make_cudaPitchedPtr((void*)data,
+        volumeSize.width*sizeof(uchar), volumeSize.width, volumeSize.height);
 
     //For uchar region
     copyRegion.extent = volumeSize;
     copyRegion.dstArray = cudaRegion;
     copyRegion.kind = cudaMemcpyHostToDevice;
-    copyRegion.srcPtr = make_cudaPitchedPtr((void*)region, volumeSize.with*sizeof(uchar), volumeSize.with, volumeSize.height);
+    copyRegion.srcPtr = make_cudaPitchedPtr((void*)region,
+        volumeSize.width*sizeof(uchar), volumeSize.width, volumeSize.height);
 
     data_texture.normalized = true;
     data_texture.filterMode = cudaFilterModeLinear;
     data_texture.addressMode[0] = cudaAddressModeWrap;
     data_texture.addressMode[1] = cudaAddressModeWrap;
     data_texture.addressMode[2] = cudaAddressModeWrap;
+
+    region_texture.normalized = true;
+    region_texture.filterMode = cudaFilterModeLinear;
+    region_texture.addressMode[0] = cudaAddressModeWrap;
+    region_texture.addressMode[1] = cudaAddressModeWrap;
+    region_texture.addressMode[2] = cudaAddressModeWrap;
     printf("cuda variables/structs set up.\n");
 
     createCudaEvent(&start);
@@ -415,7 +426,8 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     gEC(cudaBindTextureToArray(data_texture, cudaData, channelDesc));
     gEC(cudaBindTextureToArray(region_texture, cudaRegion, channelDesc));
     createCudaEvent(&end);
-    printf("Copying and binding data and region to textures took %f ms\n", getCudaEventTime(start, end));
+    printf("Copying and binding data and region to textures took %f ms\n",
+        getCudaEventTime(start, end));
 
     return image;
 }
@@ -427,8 +439,8 @@ int main(int argc, char** argv){
     printf("Done creating data\n");
 
     //Serial version
-    //uchar* region = grow_region_serial(data);
-    uchar* region = grow_region_gpu(data);
+    uchar* region = grow_region_serial(data);
+    //uchar* region = grow_region_gpu(data);
     printf("Done creating region\n");
 
     //Serial version
