@@ -1,9 +1,9 @@
 #include "raycast_cpu.cuh"
 
-size_t dataDim = sizeof(unsigned char)*DATA_DIM;
-size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
-size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
-size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
+size_t dataDim = sizeof(uchar)*DATA_DIM;
+size_t dataSize = sizeof(uchar)*DATA_SIZE;
+size_t imageDim = sizeof(uchar)*IMAGE_DIM;
+size_t imageSize = sizeof(uchar)*IMAGE_SIZE;
 
 stack_t* new_stack(){
     stack_t* stack = (stack_t*)malloc(sizeof(stack_t));
@@ -68,8 +68,8 @@ float3 scale(float3 a, float b){
 }
 
 // Fills data with values
-unsigned char func(int x, int y, int z){
-    unsigned char value = rand() % 20;
+uchar func(int x, int y, int z){
+    uchar value = rand() % 20;
 
     int x1 = 300;
     int y1 = 400;
@@ -98,8 +98,8 @@ unsigned char func(int x, int y, int z){
     return value;
 }
 
-unsigned char* create_data(){
-    unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char) * DATA_DIM*DATA_DIM*DATA_DIM);
+uchar* create_data(){
+    uchar* data = (uchar*)malloc(sizeof(uchar) * DATA_DIM*DATA_DIM*DATA_DIM);
 
     for(int i = 0; i < DATA_DIM; i++){
         for(int j = 0; j < DATA_DIM; j++){
@@ -141,7 +141,7 @@ int index(int z, int y, int x){
 }
 
 // Trilinear interpolation
-float value_at(float3 pos, unsigned char* data){
+float value_at(float3 pos, uchar* data){
     if(!inside(pos)){
         return 0;
     }
@@ -172,17 +172,17 @@ float value_at(float3 pos, unsigned char* data){
 }
 
 // Check if two values are similar, threshold can be changed.
-int similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[index(a)];
-    unsigned char vb = data[index(b)];
+int similar(uchar* data, int3 a, int3 b){
+    uchar va = data[index(a)];
+    uchar vb = data[index(b)];
 
     int i = abs(va-vb) < 1;
     return i;
 }
 
 // Serial ray casting
-unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
-    unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_SIZE);
+uchar* raycast_serial(uchar* data, uchar* region){
+    uchar* image = (uchar*)malloc(sizeof(uchar)*IMAGE_SIZE);
 
     // Camera/eye position, and direction of viewing. These can be changed to look
     // at the volume from different angles.
@@ -236,8 +236,8 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
 }
 
 // Serial region growing, same algorithm as in assignment 2
-unsigned char* grow_region_serial(unsigned char* data){
-    unsigned char* region = (unsigned char*)calloc(sizeof(unsigned char), DATA_DIM*DATA_DIM*DATA_DIM);
+uchar* grow_region_serial(uchar* data){
+    uchar* region = (uchar*)calloc(sizeof(uchar), DATA_DIM*DATA_DIM*DATA_DIM);
 
     stack_t* stack = new_stack();
 
@@ -277,13 +277,13 @@ unsigned char* grow_region_serial(unsigned char* data){
 
 int main(int argc, char** argv){
 
-    unsigned char* data = create_data();
+    uchar* data = create_data();
     printf("Done creating data\n");
 
-    unsigned char* region = grow_region_serial(data);
+    uchar* region = grow_region_serial(data);
     printf("Done creating region\n");
 
-    unsigned char* image = raycast_serial(data, region);
+    uchar* image = raycast_serial(data, region);
     printf("Done creating image\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_cpu_out.bmp");

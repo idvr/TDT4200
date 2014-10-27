@@ -22,8 +22,12 @@ extern size_t imageDim;
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
 extern size_t imageSize;
 
-//Cuda texture
-texture<int, cudaTextureType3D, cudaReadModelElementType> data_texture;
+//For sanity
+typedef unsigned char uchar;
+
+//Cuda textures
+texture<uchar, cudaTextureType3D, cudaReadModeNormalizedFloat> data_texture;
+texture<uchar, cudaTextureType3D, cudaReadModeNormalizedFloat> region_texture;
 
 //Whether to abort when errors are found in above macro/function call
 #define ERROR_ABORT 1
@@ -69,9 +73,9 @@ __host__ __device__ float3 add(float3 a, float3 b);
 __host__ __device__ float3 scale(float3 a, float b);
 __host__ __device__ float3 cross(float3 a, float3 b);
 __host__ __device__ int3 getGlobalPos(int globalThreadId);
-__host__ __device__ int similar(unsigned char* data, int3 a, int3 b);
+__host__ __device__ int similar(uchar* data, int3 a, int3 b);
 //Trilinear interpolation
-__host__ __device__ float value_at(float3 post, unsigned char* data);
+__host__ __device__ float value_at(float3 post, uchar* data);
 
 //Print/get properties of Nvidia CUDA card
 void print_properties();
@@ -87,7 +91,7 @@ void setCudaDevice(cudaDeviceProp* p, int device);
 float getCudaEventTime(cudaEvent_t start, cudaEvent_t end);
 
 //Generate input data for exercise
-unsigned char func(int x, int y, int z);
-unsigned char* create_data();
+uchar func(int x, int y, int z);
+uchar* create_data();
 
 #endif

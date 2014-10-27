@@ -1,9 +1,9 @@
 #include "raycast.cuh"
 
-size_t dataDim = sizeof(unsigned char)*DATA_DIM;
-size_t dataSize = sizeof(unsigned char)*DATA_SIZE;
-size_t imageDim = sizeof(unsigned char)*IMAGE_DIM;
-size_t imageSize = sizeof(unsigned char)*IMAGE_SIZE;
+size_t dataDim = sizeof(uchar)*DATA_DIM;
+size_t dataSize = sizeof(uchar)*DATA_SIZE;
+size_t imageDim = sizeof(uchar)*IMAGE_DIM;
+size_t imageSize = sizeof(uchar)*IMAGE_SIZE;
 
 stack_t* new_stack(){
     stack_t* stack = (stack_t*)malloc(sizeof(stack_t));
@@ -167,8 +167,8 @@ void print_properties(){
 }
 
 // Fills data with values
-unsigned char func(int x, int y, int z){
-    unsigned char value = rand() % 20;
+uchar func(int x, int y, int z){
+    uchar value = rand() % 20;
 
     int x1 = 300;
     int y1 = 400;
@@ -197,8 +197,8 @@ unsigned char func(int x, int y, int z){
     return value;
 }
 
-unsigned char* create_data(){
-    unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char) * DATA_DIM*DATA_DIM*DATA_DIM);
+uchar* create_data(){
+    uchar* data = (uchar*)malloc(sizeof(uchar) * DATA_DIM*DATA_DIM*DATA_DIM);
 
     for(int i = 0; i < DATA_DIM; i++){
         for(int j = 0; j < DATA_DIM; j++){

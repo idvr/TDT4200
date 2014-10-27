@@ -19,6 +19,9 @@ extern size_t imageDim;
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
 extern size_t imageSize;
 
+//For sanity
+typedef unsigned char uchar;
+
 // Stack for the serial region growing
 typedef struct{
     int size;
@@ -40,13 +43,13 @@ void push(stack_t* stack, int3 p);
 int getKernelThreadAmount(dim3** sizes);
 
 //Trilinear interpolation
-float value_at(float3 post, unsigned char* data);
+float value_at(float3 post, uchar* data);
 
 //Generate input data for exercise
-unsigned char func(int x, int y, int z);
-unsigned char* create_data();
-int similar(unsigned char* data, int3 a, int3 b);
+uchar func(int x, int y, int z);
+uchar* create_data();
+int similar(uchar* data, int3 a, int3 b);
 
 //Common function calls for exercise
-unsigned char* grow_region_serial(unsigned char* data, unsigned char* region);
-unsigned char* raycast_serial(unsigned char* data, unsigned char* region);
+uchar* grow_region_serial(uchar* data, uchar* region);
+uchar* raycast_serial(uchar* data, uchar* region);

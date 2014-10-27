@@ -32,7 +32,7 @@ __host__ __device__ float3 scale(float3 a, float b){
 }
 
 // Trilinear interpolation
-__host__ __device__ float value_at(float3 pos, unsigned char* data){
+__host__ __device__ float value_at(float3 pos, uchar* data){
     if(!inside(pos)){
         return 0;
     }
@@ -109,9 +109,9 @@ __host__ __device__ int3 getGlobalPos(int globalThreadId){
     return pos;
 }
 
-__host__ __device__ int similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[index(a)];
-    unsigned char vb = data[index(b)];
+__host__ __device__ int similar(uchar* data, int3 a, int3 b){
+    uchar va = data[index(a)];
+    uchar vb = data[index(b)];
     return (abs(va-vb) < 1);
 }
 
@@ -130,8 +130,8 @@ __host__ __device__ int inside(float3 pos){
 }
 
 // Serial ray casting
-unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
-    unsigned char* image = (unsigned char*)malloc(sizeof(unsigned char)*IMAGE_SIZE);
+uchar* raycast_serial(uchar* data, uchar* region){
+    uchar* image = (uchar*)malloc(sizeof(uchar)*IMAGE_SIZE);
     float3 camera = {.x=1000,.y=1000,.z=1000};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 z_axis = {.x=0, .y=0, .z = 1};
@@ -173,8 +173,8 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
 }
 
 // Serial region growing, same algorithm as in assignment 2
-unsigned char* grow_region_serial(unsigned char* data){
-    unsigned char* region = (unsigned char*)calloc(sizeof(unsigned char), DATA_DIM*DATA_DIM*DATA_DIM);
+uchar* grow_region_serial(uchar* data){
+    uchar* region = (uchar*)calloc(sizeof(uchar), DATA_DIM*DATA_DIM*DATA_DIM);
 
     stack_t* stack = new_stack();
 
@@ -212,7 +212,7 @@ unsigned char* grow_region_serial(unsigned char* data){
     return region;
 }
 
-__global__ void region_grow_kernel(unsigned char* data, unsigned char* region, int* changed){
+__global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
@@ -239,7 +239,7 @@ __global__ void region_grow_kernel(unsigned char* data, unsigned char* region, i
     return;
 }
 
-unsigned char* grow_region_gpu(unsigned char* data){
+uchar* grow_region_gpu(uchar* data){
     printf("\nEntered grow_region_gpu!\n");
 
     cudaEvent_t start, end;
@@ -247,9 +247,9 @@ unsigned char* grow_region_gpu(unsigned char* data){
     stack2_t *time_stack = new_time_stack(175);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
-    unsigned char *cudaData, *cudaRegion, *region;
+    uchar *cudaData, *cudaRegion, *region;
 
-    region = (unsigned char*) calloc(sizeof(unsigned char), DATA_SIZE);
+    region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
@@ -298,7 +298,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     return region;
 }
 
-__global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsigned char* region){
+__global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
     int tid = getGlobalIdx_3D_3D();
     int y = getBlockId_3D() - (IMAGE_DIM/2);
     int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
@@ -335,11 +335,11 @@ __global__ void raycast_kernel(unsigned char* data, unsigned char* image, unsign
     return;
 }
 
-unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
+uchar* raycast_gpu(uchar* data, uchar* region){
     cudaEvent_t start, end;
     dim3 **sizes = getGridsBlocksRaycasting(0);
-    unsigned char *cudaImage, *cudaRegion, *cudaData;
-    unsigned char *image = (unsigned char*) malloc(imageSize);
+    uchar *cudaImage, *cudaRegion, *cudaData;
+    uchar *image = (uchar*) malloc(imageSize);
     //printf("Done instantiating variables...\n");
 
     //Malloc image++ on cuda device
@@ -380,16 +380,16 @@ int main(int argc, char** argv){
     /*print_properties();
     printf("Done printing properties\n");*/
 
-    unsigned char* data = create_data();
+    uchar* data = create_data();
     printf("Done creating data\n");
 
-    unsigned char* region = grow_region_gpu(data);
-    //unsigned char* region = grow_region_serial(data);
+    uchar* region = grow_region_gpu(data);
+    //uchar* region = grow_region_serial(data);
     //printf("grow_region_gpu() took %f ms\n", ms_time);
     printf("Done creating region\n");
 
-    unsigned char* image = raycast_gpu(data, region);
-    //unsigned char* image = raycast_serial(data, region);
+    uchar* image = raycast_gpu(data, region);
+    //uchar* image = raycast_serial(data, region);
     /*printf("raycast_gpu() took %f ms\n", ms_time);*/
     printf("Done creating image\n");
 
