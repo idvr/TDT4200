@@ -22,6 +22,9 @@ extern size_t imageDim;
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
 extern size_t imageSize;
 
+//Cuda texture
+texture<int, cudaTextureType3D, cudaReadModelElementType> data_texture;
+
 //Whether to abort when errors are found in above macro/function call
 #define ERROR_ABORT 1
 //For error-checking Nvidia CUDA calls
