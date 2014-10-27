@@ -374,14 +374,14 @@ uchar* raycast_gpu(uchar* data, uchar* region){
 
 __device__ float valueAtData(float3 pos){
     if (!inside(pos)){
-        return 0;
+        return 0.0;
     }
     return tex3D(data_texture, pos.x, pos.y, pos.z);
 }
 
 __device__ float valueAtRegion(float3 pos){
     if (!inside(pos)){
-        return 0;
+        return 0.0;
     }
     return tex3D(region_texture, pos.x, pos.y, pos.z);
 }
@@ -483,8 +483,8 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     printf("Copying image from device took %f ms\n\n",
         getCudaEventTime(start, end));
 
-    gEC(cudaFreeArray(cudaData));
     gEC(cudaFree(cudaImage));
+    gEC(cudaFreeArray(cudaData));
     gEC(cudaFreeArray(cudaRegion));
     return image;
 }
