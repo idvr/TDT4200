@@ -376,7 +376,9 @@ uchar* raycast_gpu(uchar* data, uchar* region){
 
 int main(int argc, char** argv){
     printf("\nStarting program...\n\n");
-    //print_properties();
+    print_properties();
+
+    printf("\nSize of unsigned char: %zd\n\n", sizeof(unsigned char));
 
     uchar* data = create_data();
     printf("Done creating data\n\n");
