@@ -236,19 +236,14 @@ dim3** getGridsBlocksGrowRegion(int device){
     dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
     sizes[0] = (dim3*) malloc(sizeof(dim3));
     sizes[1] = (dim3*) malloc(sizeof(dim3));
-    //printf("Done assigning to size!\n");
 
     //Hardcoding blockdim values (8^3 = 512 = DATA_DIM)
     block.z = 8; grid.z = (DATA_DIM/block.z);
     block.y = 8; grid.y = (DATA_DIM/block.y);
     block.x = 16; grid.x = (DATA_DIM/block.x);
-    //printf("Done assigning grid and block values!\n");
 
     memcpy(sizes[0], &grid, sizeof(dim3));
     memcpy(sizes[1], &block, sizeof(dim3));
-    //printf("Done with memcpy!\n");
-    //printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
-    //printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
     return sizes;
 }
 
@@ -257,18 +252,29 @@ dim3** getGridsBlocksRaycasting(int device){
     dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
     sizes[0] = (dim3*) malloc(sizeof(dim3));
     sizes[1] = (dim3*) malloc(sizeof(dim3));
-    //printf("Done assigning to size!\n");
 
     //Hardcoding blockdim values (8^3 = 512 = DATA_DIM)
     block.z = 8; grid.z = 8;
     block.y = 8; grid.y = 8;
     block.x = 8; grid.x = 8;
-    //printf("Done assigning grid and block values!\n");
 
     memcpy(sizes[0], &grid, sizeof(dim3));
     memcpy(sizes[1], &block, sizeof(dim3));
-    //printf("Done with memcpy!\n");
-    //printf("grid.x: %d, grid.y: %d, grid.z: %d\n", sizes[0]->x, sizes[0]->y, sizes[0]->z);
-    //printf("block.x: %d, block.y: %d, block.z: %d\n", sizes[1]->x, sizes[1]->y, sizes[1]->z);
+    return sizes;
+}
+
+dim3** getGridsBlocksShared(int device){
+    dim3 grid, block;
+    dim3 **sizes = (dim3**) malloc(sizeof(dim3*)*2);
+    sizes[0] = (dim3*) malloc(sizeof(dim3));
+    sizes[1] = (dim3*) malloc(sizeof(dim3));
+
+    //Hardcoding blockdim values (8^3 = 512 = DATA_DIM)
+    block.z = 8; grid.z = 8;
+    block.y = 8; grid.y = 8;
+    block.x = 8; grid.x = 8;
+
+    memcpy(sizes[0], &grid, sizeof(dim3));
+    memcpy(sizes[1], &block, sizeof(dim3));
     return sizes;
 }

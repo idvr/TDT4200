@@ -240,8 +240,6 @@ __global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
 }
 
 uchar* grow_region_gpu(uchar* data){
-    printf("\nEntered grow_region_gpu!\n");
-
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
     stack2_t *time_stack = new_time_stack(256);
