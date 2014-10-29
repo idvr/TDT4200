@@ -17,7 +17,7 @@ extern size_t dataDim;
 extern size_t dataSize;
 
 // image is 2D, total size is IMAGE_DIM x IMAGE_DIM
-#define IMAGE_DIM 512
+#define IMAGE_DIM DATA_DIM
 extern size_t imageDim;
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
 extern size_t imageSize;
@@ -64,10 +64,9 @@ stack2_t* new_time_stack(int start_size);
 __device__ int getBlockId_3D();
 __device__ int getGlobalIdx_3D_3D();
 __device__ int getBlockThreadId_3D();
-//Interpolation by CUDA
-__device__ float valueAtData(float3 pos);
-//Interpolation by CUDA
-__device__ float valueAtRegion(float3 pos);
+__device__ int insideThreadBlock(int3 pos);
+__device__ int getThreadInBlockIndex(int3 pos);
+__device__ int3 getThreadInBlockPos_3D(int tid);
 __host__ __device__ int index(int3 pos);
 __host__ __device__ int inside(int3 pos);
 __host__ __device__ int inside(float3 pos);
@@ -88,7 +87,6 @@ int getThreadsPerBlock(int device);
 int getMaxThreadsPerSM(int device);
 int getBlocksPerSM(int device, int dim);
 int getKernelThreadAmount(dim3** sizes);
-dim3** getGridsBlocksShared(int device);
 dim3** getGridsBlocksGrowRegion(int device);
 dim3** getGridsBlocksRaycasting(int device);
 void createCudaEvent(cudaEvent_t* cudaEvent);

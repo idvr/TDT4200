@@ -67,7 +67,7 @@ __device__ int getBlockId_3D(){
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int getBlockThreadId_3D(){
+__device__ int getThreadInBlockId_3D(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
@@ -84,7 +84,7 @@ __host__ __device__ int index(int z, int y, int x){
 
 __device__ int getGlobalIdx_3D_3D(){
     int blockId = getBlockId_3D();
-    int threadId = getBlockThreadId_3D() +
+    int threadId = getThreadInBlockId_3D() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
@@ -299,7 +299,7 @@ uchar* grow_region_gpu(uchar* data){
 __global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
     int tid = getGlobalIdx_3D_3D();
     int y = getBlockId_3D() - (IMAGE_DIM/2);
-    int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
+    int x = getThreadInBlockId_3D() - (IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000, .y=1000, .z=1000};
@@ -374,25 +374,132 @@ uchar* raycast_gpu(uchar* data, uchar* region){
     return image;
 }
 
-__global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* finished){
-    //Load into shared memory
+__device__ int3 getThreadInBlockPos_3D(int tid){
+    int3 pos = {.y = 0, .z = 0,
+        .x = getThreadInBlockId_3D()};
+    int zd = gridDim.y*gridDim.z;
+    int yd = gridDim.y;
+    if ((zd-1) > pos.x){
+        pos.z = pos.x/zd;
+        pos.x -= pos.z*zd;
+    }
+    if ((yd-1) > pos.x){
+        pos.y = pos.x/yd;
+        pos.x -= pos.y*yd;
+    }
+    return pos;
+}
 
-    __syncthreads();
+__device__ int getThreadInBlockIndex(int3 pos){
+    int tid = pos.x;
+    tid += pos.y*gridDim.y;
+    tid += pos.z*gridDim.y*gridDim.z;
+    return tid;
+}
 
-    //Process shared memory
-
-    __syncthreads();
-
-    //Write results
+__device__ int insideThreadBlock(int3 pos){
+    int x = (pos.x >= 0 && pos.x < blockIdx.x);
+    int y = (pos.y >= 0 && pos.y < blockIdx.y);
+    int z = (pos.z >= 0 && pos.z < blockIdx.z);
+    return x && y && z;
 
 }
 
+__global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
+    extern __shared__ unsigned char sdata[];
+    //Load into shared memory
+    __shared__ int3 pos, pixel;
+    __shared__ unsigned int pos_id, bid, tid;
+    const int dx[6] = {-1,1,0,0,0,0};
+    const int dy[6] = {0,0,-1,1,0,0};
+    const int dz[6] = {0,0,0,0,-1,1};
+    bid = getBlockId_3D();
+    tid = getThreadInBlockId_3D();
+    pixel = getThreadInBlockPos_3D(tid);
+    sdata[tid] = data[tid+bid];
+    //Constant factor with 512 threads per block of shared memory used:
+    //3*6 (dx,dy,dz) + 8*512 (thread specific helpers) = 18 + 4096 = 4114
+    //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
+    __syncthreads();
+
+    //Process shared memory (non-synchronizing version)
+    if(NEW_VOX == region[tid+bid]){
+        region[tid+bid] = VISITED;
+        for (int i = 0; i < 6; ++i){
+            pos = pixel;
+            pos.x += dx[i];
+            pos.y += dy[i];
+            pos.z += dz[i];
+            pos_id = getThreadInBlockIndex(pos);
+            if (insideThreadBlock(pos)  &&
+                !region[pos_id+bid]     &&
+                abs(sdata[tid] - sdata[pos_id]) < 1){
+                //Write results
+                region[pos_id+bid] = NEW_VOX;
+                *changed = 1;
+            }
+        }
+    }
+}
+
 uchar* grow_region_gpu_shared(uchar* data){
+    //8 rows 8 heigh of 8 depth threads per block
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
-    stack2_t *time_stack = new_time_stack(512);
-    dim3 **sizes = getGridsBlocksShared(0);
-    return NULL;
+    stack2_t *time_stack = new_time_stack(256);
+    dim3 **sizes = getGridsBlocksGrowRegion(0);
+
+
+    int3 seed = {.x = 50, .y = 300, .z = 300};
+    uchar *cudaData, *cudaRegion, *region;
+
+    region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
+    region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
+    //printf("Done instantiating variables...\n");
+
+    gEC(cudaMalloc(&gpu_changed, sizeof(int)));
+    //Malloc image on cuda device
+    gEC(cudaMalloc(&cudaData, dataSize));
+    //Malloc region on cuda device
+    gEC(cudaMalloc(&cudaRegion, dataSize));
+    gEC(cudaMemset(cudaRegion, 0, dataSize));
+    //printf("Done mallocing on CUDA device!\n");
+
+    //Copy image and region over to device
+    createCudaEvent(&start);
+    gEC(cudaMemcpy(cudaData, data, dataSize, cudaMemcpyHostToDevice));
+    gEC(cudaMemcpy(cudaRegion, region, dataSize, cudaMemcpyHostToDevice));
+    createCudaEvent(&end);
+    printf("Copying data and region to device took %.4f ms\n",
+        getCudaEventTime(start, end));
+
+    for (int i = 0; changed && (256 > i); ++i){
+        gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
+        createCudaEvent(&start);
+        region_grow_kernel<<<*sizes[0], *sizes[1]>>>(&cudaData[0], &cudaRegion[0], gpu_changed);
+        createCudaEvent(&end);
+        push(time_stack, getCudaEventTime(start, end));
+        gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
+    }
+
+    float sum = 0;
+    for (int i = 0; i < time_stack->size; ++i){
+        sum += peek(time_stack, i);
+    }
+    printf("%d kernel calls took a sum total of %.4f ms\n", time_stack->size, sum);
+    destroy(time_stack);
+
+    //Copy region from device
+    createCudaEvent(&start);
+    gEC(cudaMemcpy(region, cudaRegion, dataSize, cudaMemcpyDeviceToHost));
+    createCudaEvent(&end);
+    printf("\nCopying region from device took %.4f ms\n", getCudaEventTime(start, end));
+
+    gEC(cudaFree(cudaData));
+    gEC(cudaFree(cudaRegion));
+    gEC(cudaFree(gpu_changed));
+
+    return region;
 }
 
 int main(int argc, char** argv){
