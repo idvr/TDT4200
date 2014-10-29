@@ -253,7 +253,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
         (blockDim.x-1 != voxel.x)&& //if along plane x == max value
         (blockDim.y-1 != voxel.y)&& //if along plane y == max value
         (blockDim.z-1 != voxel.z)){ //if along plane z == max value
-        if(NEW_VOX == region[tid + bid]){
+        if(NEW_VOX == region[tid+bid]){
             region[tid+bid] = VISITED;
             for (int i = 0; i < 6; ++i){
                 pos = voxel;
@@ -262,7 +262,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
                 pos.z += dz[i];
                 pos_id = getThreadInBlockIndex(pos);
                 if (insideThreadBlock(pos)  &&
-                    !region[tid+pos_id]     &&
+                    !region[pos_id+bid]     &&
                     abs(sdata[tid] - sdata[pos_id]) < 1){
                     //Write results
                     region[pos_id+bid] = NEW_VOX;
@@ -310,6 +310,9 @@ uchar* grow_region_gpu_shared(uchar* data){
         createCudaEvent(&end);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
+        if(i%20 == 0){
+            ("Iteration %d...\n", i);
+        }
     }
 
     float sum = 0;
@@ -342,11 +345,11 @@ int main(int argc, char** argv){
     uchar* region = grow_region_gpu_shared(data);
     printf("Done creating region\n\n");
 
-    /*uchar* image = raycast_gpu(data, region);
+    uchar* image = raycast_gpu(data, region);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_shared_out.bmp");
-    printf("Done with program\n\n");*/
+    printf("Done with program\n\n");
 
     return 0;
 }
