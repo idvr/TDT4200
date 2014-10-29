@@ -67,7 +67,7 @@ __device__ int getBlockId(){
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int getBlockThreadId(){
+__device__ int getThreadId(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
@@ -84,7 +84,7 @@ __host__ __device__ int index(int z, int y, int x){
 
 __device__ int getGlobalIdx(){
     int blockId = getBlockId();
-    int threadId = getBlockThreadId() +
+    int threadId = getThreadId() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
@@ -301,7 +301,7 @@ uchar* grow_region_gpu(uchar* data){
 __global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
     int tid = getGlobalIdx();
     int y = getBlockId() - (IMAGE_DIM/2);
-    int x = getBlockThreadId() - (IMAGE_DIM/2);
+    int x = getThreadId() - (IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000, .y=1000, .z=1000};
@@ -385,7 +385,7 @@ __device__ float valueAtRegion(float3 pos){
 __global__ void raycast_kernel_texture(uchar* image){
     int tid = getGlobalIdx();
     int y = getBlockId() - (IMAGE_DIM/2);
-    int x = getBlockThreadId() - (IMAGE_DIM/2);
+    int x = getThreadId() - (IMAGE_DIM/2);
     float step_size = 0.5, fov = 3.14/4, color = 0,
             pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
