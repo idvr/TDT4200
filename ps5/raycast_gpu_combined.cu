@@ -7,12 +7,12 @@ __device__ int getBlockId(){
 
 __device__ int getGlobalIdx(){
     int blockId = getBlockId();
-    int threadId = getThreadInBlockId() +
+    int threadId = getThreadId() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
 
-__device__ int getThreadInBlockId(){
+__device__ int getThreadId(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
@@ -36,7 +36,7 @@ __device__ int insideThreadBlock(int3 pos){
 
 __device__ int3 getThreadInBlockPos(int tid){
     int3 pos = {.y = 0, .z = 0,
-        .x = getThreadInBlockId()};
+        .x = getThreadId()};
     int zd = gridDim.y*gridDim.z;
     int yd = gridDim.y;
     if ((zd-1) > pos.x){
@@ -98,7 +98,7 @@ __host__ __device__ int inside(float3 pos){
 __global__ void raycast_kernel_texture(uchar* image){
     int tid = getGlobalIdx();
     int y = getBlockId() - (IMAGE_DIM/2);
-    int x = getThreadInBlockId() - (IMAGE_DIM/2);
+    int x = getThreadId() - (IMAGE_DIM/2);
     float step_size = 0.5, fov = 3.14/4, color = 0,
             pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
@@ -243,7 +243,6 @@ uchar* grow_region_gpu_shared(uchar* data){
     int changed = 1, *gpu_changed;
     stack2_t *time_stack = new_time_stack(256);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
-
 
     int3 seed = {.x = 50, .y = 300, .z = 300};
     uchar *cudaData, *cudaRegion, *region;

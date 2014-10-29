@@ -66,9 +66,9 @@ __device__ float valueAtRegion(float3 pos);
 
 //Functions accessible by kernels
 __device__ int getBlockId();
+__device__ int getThreadId();
 __device__ int getGlobalIdx();
 __device__ int getBlockThreadId();
-__device__ int getThreadInBlockId();
 __device__ int insideThreadBlock(int3 pos);
 __device__ int getThreadInBlockIndex(int3 pos);
 __device__ int3 getThreadInBlockPos(int tid);

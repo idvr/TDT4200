@@ -67,7 +67,7 @@ __device__ int getBlockId(){
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int getThreadInBlockId(){
+__device__ int getThreadId(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
@@ -88,7 +88,7 @@ __device__ int getThreadInBlockIndex(int3 pos){
 
 __device__ int3 getThreadInBlockPos(int tid){
     int3 pos = {.y = 0, .z = 0,
-        .x = getThreadInBlockId()};
+        .x = getThreadId()};
     int zd = gridDim.y*gridDim.z;
     int yd = gridDim.y;
     if ((zd-1) > pos.x){
@@ -114,7 +114,7 @@ __host__ __device__ int index(int z, int y, int x){
 
 __device__ int getGlobalIdx(){
     int blockId = getBlockId();
-    int threadId = getThreadInBlockId() +
+    int threadId = getThreadId() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
@@ -162,7 +162,7 @@ __host__ __device__ int inside(float3 pos){
 __global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
     int tid = getGlobalIdx();
     int y = getBlockId() - (IMAGE_DIM/2);
-    int x = getThreadInBlockId() - (IMAGE_DIM/2);
+    int x = getThreadId() - (IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000, .y=1000, .z=1000};
@@ -246,7 +246,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
     bid = getBlockId();
-    tid = getThreadInBlockId();
+    tid = getThreadId();
     pixel = getThreadInBlockPos(tid);
     sdata[tid] = data[tid+bid];
     //Constant factor with 512 threads per block of shared memory used:
