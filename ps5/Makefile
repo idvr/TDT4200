@@ -6,7 +6,7 @@
 .PHONY: install
 
 #Whatever is currently being worked with
-target:=gpu_combined
+target:=gpu_shared
 
 all: cpu gpu gpu_shared gpu_texture gpu_combined
 

@@ -238,37 +238,46 @@ uchar* raycast_gpu(uchar* data, uchar* region){
 }
 
 __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
-    extern __shared__ unsigned char sdata[];
-    //Load into shared memory
     __shared__ int3 pos, pixel;
+    extern __shared__ unsigned char sdata[];
     __shared__ unsigned int pos_id, bid, tid;
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    bid = getBlockId();
     tid = getThreadId();
-    pixel = getThreadInBlockPos(tid);
+    bid = getBlockId()*blockDim.x*blockDim.y*blockDim.z;
+    printf("Test!\n");
+    //pixel = getThreadInBlockPos(tid);
+
+    //Load into shared memory
     sdata[tid] = data[tid+bid];
     //Constant factor with 512 threads per block of shared memory used:
     //3*6 (dx,dy,dz) + 8*512 (thread specific helpers) = 18 + 4096 = 4114
     //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
     __syncthreads();
 
-    //Process shared memory (non-synchronizing version)
-    if(NEW_VOX == region[tid+bid]){
-        region[tid+bid] = VISITED;
-        for (int i = 0; i < 6; ++i){
-            pos = pixel;
-            pos.x += dx[i];
-            pos.y += dy[i];
-            pos.z += dz[i];
-            pos_id = getThreadInBlockIndex(pos);
-            if (insideThreadBlock(pos)  &&
-                !region[pos_id+bid]     &&
-                abs(sdata[tid] - sdata[pos_id]) < 1){
-                //Write results
-                region[pos_id+bid] = NEW_VOX;
-                *changed = 1;
+    //Check if thread is along one border-edge of the cube or another
+    if (0 != pixel.x &&
+        0 != pixel.x &&
+        0 != pixel.y &&
+        (blockDim.x-1 != pixel.x)&&
+        (blockDim.y-1 != pixel.y)&&
+        (blockDim.z-1 != pixel.z)){
+        if(NEW_VOX == region[tid+bid]){
+            region[tid+bid] = VISITED;
+            for (int i = 0; i < 6; ++i){
+                pos = pixel;
+                pos.x += dx[i];
+                pos.y += dy[i];
+                pos.z += dz[i];
+                pos_id = getThreadInBlockIndex(pos);
+                if (insideThreadBlock(pos)  &&
+                    !region[pos_id+bid]     &&
+                    abs(sdata[tid] - sdata[pos_id]) < 1){
+                    //Write results
+                    region[pos_id+bid] = NEW_VOX;
+                    *changed = 1;
+                }
             }
         }
     }
