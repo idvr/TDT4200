@@ -252,7 +252,9 @@ uchar* grow_region_gpu_shared(uchar* data){
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
+    printf("%s\n", cudaGetLastError());
     gEC(cudaMalloc(&gpu_changed, sizeof(int)));
+    printf("%s\n", cudaGetLastError());
     //Malloc image on cuda device
     gEC(cudaMalloc(&cudaData, dataSize));
     //Malloc region on cuda device
