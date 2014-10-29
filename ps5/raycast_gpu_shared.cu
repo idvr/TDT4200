@@ -63,8 +63,10 @@ __host__ __device__ float value_at(float3 pos, uchar* data){
 }
 
 __device__ int getBlockId(){
-    return blockIdx.x + (blockIdx.y*gridDim.x)
-            + (blockIdx.z*gridDim.x*gridDim.y);
+    return (blockIdx.x +
+        (blockIdx.y*gridDim.x) +
+        (blockIdx.z*gridDim.x*gridDim.y)) *
+        (blockDim.x * blockDim.y * blockDim.z);
 }
 
 __device__ int getThreadId(){
@@ -87,15 +89,18 @@ __device__ int getThreadInBlockIndex(int3 pos){
 }
 
 __device__ int3 getThreadInBlockPos(int tid){
-    int3 pos = {.y = 0, .z = 0,
-        .x = getThreadId()};
+    int3 pos = {
+        .x = getThreadId(),
+            .y = 0, .z = 0};
+
     int zd = gridDim.y*gridDim.z;
     int yd = gridDim.y;
-    if ((zd-1) > pos.x){
+
+    if ((zd-1) < pos.x){
         pos.z = pos.x/zd;
         pos.x -= pos.z*zd;
     }
-    if ((yd-1) > pos.x){
+    if ((yd-1) < pos.x){
         pos.y = pos.x/yd;
         pos.x -= pos.y*yd;
     }
@@ -238,41 +243,41 @@ uchar* raycast_gpu(uchar* data, uchar* region){
 }
 
 __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
-    __shared__ int3 pos, pixel;
-    extern __shared__ unsigned char sdata[];
-    __shared__ unsigned int pos_id, bid, tid;
-    const int dx[6] = {-1,1,0,0,0,0};
-    const int dy[6] = {0,0,-1,1,0,0};
-    const int dz[6] = {0,0,0,0,-1,1};
-    tid = getThreadId();
-    bid = getBlockId()*blockDim.x*blockDim.y*blockDim.z;
-    printf("Test!\n");
-    //pixel = getThreadInBlockPos(tid);
-
-    //Load into shared memory
-    sdata[tid] = data[tid+bid];
     //Constant factor with 512 threads per block of shared memory used:
     //3*6 (dx,dy,dz) + 8*512 (thread specific helpers) = 18 + 4096 = 4114
     //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
-    __syncthreads();
+
+    int3 pos, voxel;
+    const int dx[6] = {-1,1,0,0,0,0};
+    const int dy[6] = {0,0,-1,1,0,0};
+    const int dz[6] = {0,0,0,0,-1,1};
+    extern __shared__ unsigned char sdata[];
+    unsigned int pos_id, bid = getBlockId(), tid = getThreadId();
+    printf("bid: %d\ttid: %d\n", bid, tid);
+    voxel = getThreadInBlockPos(tid);
+
+    //Load into shared memory
+    //sdata[tid] = data[tid+bid];
+    //printf("Test!\n");
+    //__syncthreads();
 
     //Check if thread is along one border-edge of the cube or another
-    if (0 != pixel.x &&
-        0 != pixel.x &&
-        0 != pixel.y &&
-        (blockDim.x-1 != pixel.x)&&
-        (blockDim.y-1 != pixel.y)&&
-        (blockDim.z-1 != pixel.z)){
-        if(NEW_VOX == region[tid+bid]){
-            region[tid+bid] = VISITED;
+    /*if (0 != voxel.x && //if along plane x == 0
+        0 != voxel.x && //if along plane y == 0
+        0 != voxel.y && //if along plane z == 0
+        (blockDim.x-1 != voxel.x)&& //if along plane x == max value
+        (blockDim.y-1 != voxel.y)&& //if along plane y == max value
+        (blockDim.z-1 != voxel.z)){ //if along plane z == max value
+        if(NEW_VOX == region[tid + (bid*blockDim*x)){
+            region[global] = VISITED;
             for (int i = 0; i < 6; ++i){
-                pos = pixel;
+                pos = voxel;
                 pos.x += dx[i];
                 pos.y += dy[i];
                 pos.z += dz[i];
                 pos_id = getThreadInBlockIndex(pos);
                 if (insideThreadBlock(pos)  &&
-                    !region[pos_id+bid]     &&
+                    !region[global]     &&
                     abs(sdata[tid] - sdata[pos_id]) < 1){
                     //Write results
                     region[pos_id+bid] = NEW_VOX;
@@ -280,7 +285,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
                 }
             }
         }
-    }
+    }*/
 }
 
 uchar* grow_region_gpu_shared(uchar* data){
@@ -289,8 +294,6 @@ uchar* grow_region_gpu_shared(uchar* data){
     int changed = 1, *gpu_changed;
     stack2_t *time_stack = new_time_stack(256);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
-
-
     int3 seed = {.x = 50, .y = 300, .z = 300};
     uchar *cudaData, *cudaRegion, *region;
 
