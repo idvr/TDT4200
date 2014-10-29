@@ -520,7 +520,7 @@ int main(int argc, char** argv){
     uchar* image = raycast_gpu(data, region);
     printf("Done creating image\n\n");
 
-    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_texture_out.bmp");
+    write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_shared_out.bmp");
     printf("Done with program\n\n");
 
     return 0;
