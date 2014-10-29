@@ -66,12 +66,13 @@ __device__ int getBlockId(){
     return (blockIdx.x +
         (blockIdx.y*gridDim.x) +
         (blockIdx.z*gridDim.x*gridDim.y)) *
-        (blockDim.x * blockDim.y * blockDim.z);
+        (blockDim.x*blockDim.y*blockDim.z);
 }
 
 __device__ int getThreadId(){
-    return threadIdx.x + (threadIdx.y*blockDim.x)
-            + (threadIdx.z*blockDim.x*blockDim.y);
+    return threadIdx.x +
+        (threadIdx.y*blockDim.x) +
+        (threadIdx.z*blockDim.x*blockDim.y);
 }
 
 __device__ int insideThreadBlock(int3 pos){
@@ -81,30 +82,18 @@ __device__ int insideThreadBlock(int3 pos){
     return x && y && z;
 }
 
-__device__ int getThreadInBlockIndex(int3 pos){
-    int tid = pos.x;
-    tid += pos.y*gridDim.y;
-    tid += pos.z*gridDim.y*gridDim.z;
-    return tid;
+__device__ int3 getThreadInBlockPos(){
+    int3 pos = {
+        .x = threadIdx.x,
+        .y = threadIdx.y,
+        .z = threadIdx.z};
+    return pos;
 }
 
-__device__ int3 getThreadInBlockPos(int tid){
-    int3 pos = {
-        .x = getThreadId(),
-            .y = 0, .z = 0};
-
-    int zd = gridDim.y*gridDim.z;
-    int yd = gridDim.y;
-
-    if ((zd-1) < pos.x){
-        pos.z = pos.x/zd;
-        pos.x -= pos.z*zd;
-    }
-    if ((yd-1) < pos.x){
-        pos.y = pos.x/yd;
-        pos.x -= pos.y*yd;
-    }
-    return pos;
+__device__ int getThreadInBlockIndex(int3 pos){
+    return pos.x +
+        (pos.y*blockDim.x) +
+        (pos.z*blockDim.x*blockDim.y);
 }
 
 __host__ __device__ int index(int3 pos){
@@ -118,10 +107,8 @@ __host__ __device__ int index(int z, int y, int x){
 }
 
 __device__ int getGlobalIdx(){
-    int blockId = getBlockId();
-    int threadId = getThreadId() +
-            blockId*(blockDim.x*blockDim.y*blockDim.z);
-    return threadId;
+    return getBlockId() +
+            getThreadId();
 }
 
 __host__ __device__ int3 getGlobalPos(int globalThreadId){
@@ -254,22 +241,22 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
     extern __shared__ unsigned char sdata[];
     unsigned int pos_id, bid = getBlockId(), tid = getThreadId();
     printf("bid: %d\ttid: %d\n", bid, tid);
-    voxel = getThreadInBlockPos(tid);
+    //voxel = getThreadInBlockPos();
 
     //Load into shared memory
-    //sdata[tid] = data[tid+bid];
-    //printf("Test!\n");
-    //__syncthreads();
+    /*sdata[tid] = data[tid+bid];
+    printf("Test!\n");
+    __syncthreads();
 
     //Check if thread is along one border-edge of the cube or another
-    /*if (0 != voxel.x && //if along plane x == 0
+    if (0 != voxel.x && //if along plane x == 0
         0 != voxel.x && //if along plane y == 0
         0 != voxel.y && //if along plane z == 0
         (blockDim.x-1 != voxel.x)&& //if along plane x == max value
         (blockDim.y-1 != voxel.y)&& //if along plane y == max value
         (blockDim.z-1 != voxel.z)){ //if along plane z == max value
-        if(NEW_VOX == region[tid + (bid*blockDim*x)){
-            region[global] = VISITED;
+        if(NEW_VOX == region[tid + bid]){
+            region[tid+bid] = VISITED;
             for (int i = 0; i < 6; ++i){
                 pos = voxel;
                 pos.x += dx[i];
@@ -277,7 +264,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
                 pos.z += dz[i];
                 pos_id = getThreadInBlockIndex(pos);
                 if (insideThreadBlock(pos)  &&
-                    !region[global]     &&
+                    !region[tid+bid]     &&
                     abs(sdata[tid] - sdata[pos_id]) < 1){
                     //Write results
                     region[pos_id+bid] = NEW_VOX;
@@ -320,8 +307,10 @@ uchar* grow_region_gpu_shared(uchar* data){
     for (int i = 0; changed && (256 > i); ++i){
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
-        region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(&cudaData[0], &cudaRegion[0], gpu_changed);
+        region_grow_kernel_shared<<<*sizes[0], *sizes[1], sizeof(uchar)*512>>>(
+            &cudaData[0], &cudaRegion[0], gpu_changed);
         createCudaEvent(&end);
+        printf("Done with iteration %d...\n", i);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
     }
