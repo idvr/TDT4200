@@ -1,7 +1,8 @@
 #include "raycast.cuh"
 
 // float3 utilities
-__host__ __device__ float3 cross(float3 a, float3 b){
+__host__ __device__
+float3 cross(float3 a, float3 b){
     float3 c;
     c.x = a.y*b.z - a.z*b.y;
     c.y = a.z*b.x - a.x*b.z;
@@ -9,7 +10,8 @@ __host__ __device__ float3 cross(float3 a, float3 b){
     return c;
 }
 
-__host__ __device__ float3 normalize(float3 v){
+__host__ __device__
+float3 normalize(float3 v){
     float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x /= l;
     v.y /= l;
@@ -17,14 +19,16 @@ __host__ __device__ float3 normalize(float3 v){
     return v;
 }
 
-__host__ __device__ float3 add(float3 a, float3 b){
+__host__ __device__
+float3 add(float3 a, float3 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return a;
 }
 
-__host__ __device__ float3 scale(float3 a, float b){
+__host__ __device__
+float3 scale(float3 a, float b){
     a.x *= b;
     a.y *= b;
     a.z *= b;
@@ -32,7 +36,8 @@ __host__ __device__ float3 scale(float3 a, float b){
 }
 
 // Trilinear interpolation
-__host__ __device__ float value_at(float3 pos, uchar* data){
+__host__ __device__
+float value_at(float3 pos, uchar* data){
     if(!inside(pos)){
         return 0;
     }
@@ -62,34 +67,40 @@ __host__ __device__ float value_at(float3 pos, uchar* data){
     return c0;
 }
 
-__device__ int getBlockId(){
+__device__
+int getBlockId(){
     return blockIdx.x + (blockIdx.y*gridDim.x)
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int getThreadId(){
+__device__
+int getThreadId(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
 
-__host__ __device__ int index(int3 pos){
+__host__ __device__
+int index(int3 pos){
     return pos.z*IMAGE_SIZE
         + pos.y*DATA_DIM + pos.x;
 }
 
-__host__ __device__ int index(int z, int y, int x){
+__host__ __device__
+int index(int z, int y, int x){
     return z*IMAGE_SIZE
         + y*DATA_DIM + x;
 }
 
-__device__ int getGlobalIdx(){
+__device__
+int getGlobalIdx(){
     int blockId = getBlockId();
     int threadId = getThreadId() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
 
-__host__ __device__ int3 getGlobalPos(int globalThreadId){
+__host__ __device__
+int3 getGlobalPos(int globalThreadId){
     int3 pos = {
         .x = globalThreadId,
             .y = 0, .z = 0};
@@ -109,27 +120,31 @@ __host__ __device__ int3 getGlobalPos(int globalThreadId){
     return pos;
 }
 
-__host__ __device__ int similar(uchar* data, int3 a, int3 b){
+__host__ __device__
+int similar(uchar* data, int3 a, int3 b){
     uchar va = data[index(a)];
     uchar vb = data[index(b)];
     return (abs(va-vb) < 1);
 }
 
-__host__ __device__ int inside(int3 pos){
+__host__ __device__
+int inside(int3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
 }
 
-__host__ __device__ int inside(float3 pos){
+__host__ __device__
+int inside(float3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
 }
 
-__global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
+__global__
+void region_grow_kernel(uchar* data, uchar* region, int* changed){
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
@@ -213,17 +228,20 @@ uchar* grow_region_gpu(uchar* data){
     return region;
 }
 
-__device__ float valueAtData(float3 pos){
+__device__
+float valueAtData(float3 pos){
     return tex3D(data_texture,
         pos.x, pos.y, pos.z)*255.f;
 }
 
-__device__ float valueAtRegion(float3 pos){
+__device__
+float valueAtRegion(float3 pos){
     return tex3D(region_texture,
         pos.x, pos.y, pos.z)*255.f;
 }
 
-__global__ void raycast_kernel_texture(uchar* image){
+__global__
+void raycast_kernel_texture(uchar* image){
     int tid = getGlobalIdx();
     int y = getBlockId() - (IMAGE_DIM/2);
     int x = getThreadId() - (IMAGE_DIM/2);

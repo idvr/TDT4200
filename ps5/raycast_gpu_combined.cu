@@ -1,40 +1,47 @@
 #include "raycast.cuh"
 
-__device__ int getBlockId(){
+__device__
+int getBlockId(){
     return blockIdx.x + (blockIdx.y*gridDim.x)
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int getGlobalIdx(){
+__device__
+int getGlobalIdx(){
     int blockId = getBlockId();
     int threadId = getThreadId() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
 
-__device__ int getThreadId(){
+__device__
+int getThreadId(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
 
-__device__ float valueAtData(float3 pos){
+__device__
+float valueAtData(float3 pos){
     return tex3D(data_texture,
         pos.x, pos.y, pos.z)*255.f;
 }
 
-__device__ float valueAtRegion(float3 pos){
+__device__
+float valueAtRegion(float3 pos){
     return tex3D(region_texture,
         pos.x, pos.y, pos.z)*255.f;
 }
 
-__device__ int insideThreadBlock(int3 pos){
+__device__
+int insideThreadBlock(int3 pos){
     int x = (pos.x >= 0 && pos.x < blockIdx.x);
     int y = (pos.y >= 0 && pos.y < blockIdx.y);
     int z = (pos.z >= 0 && pos.z < blockIdx.z);
     return x && y && z;
 }
 
-__device__ int3 getThreadInBlockPos(int tid){
+__device__
+int3 getThreadInBlockPos(int tid){
     int3 pos = {.y = 0, .z = 0,
         .x = getThreadId()};
     int zd = gridDim.y*gridDim.z;
@@ -50,7 +57,8 @@ __device__ int3 getThreadInBlockPos(int tid){
     return pos;
 }
 
-__device__ int getThreadInBlockIndex(int3 pos){
+__device__
+int getThreadInBlockIndex(int3 pos){
     int tid = pos.x;
     tid += pos.y*gridDim.y;
     tid += pos.z*gridDim.y*gridDim.z;
@@ -58,7 +66,8 @@ __device__ int getThreadInBlockIndex(int3 pos){
 }
 
 // float3 utilities
-__host__ __device__ float3 cross(float3 a, float3 b){
+__host__ __device__
+float3 cross(float3 a, float3 b){
     float3 c;
     c.x = a.y*b.z - a.z*b.y;
     c.y = a.z*b.x - a.x*b.z;
@@ -66,7 +75,8 @@ __host__ __device__ float3 cross(float3 a, float3 b){
     return c;
 }
 
-__host__ __device__ float3 normalize(float3 v){
+__host__ __device__
+float3 normalize(float3 v){
     float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
     v.x /= l;
     v.y /= l;
@@ -74,28 +84,32 @@ __host__ __device__ float3 normalize(float3 v){
     return v;
 }
 
-__host__ __device__ float3 add(float3 a, float3 b){
+__host__ __device__
+float3 add(float3 a, float3 b){
     a.x += b.x;
     a.y += b.y;
     a.z += b.z;
     return a;
 }
 
-__host__ __device__ float3 scale(float3 a, float b){
+__host__ __device__
+float3 scale(float3 a, float b){
     a.x *= b;
     a.y *= b;
     a.z *= b;
     return a;
 }
 
-__host__ __device__ int inside(float3 pos){
+__host__ __device__
+int inside(float3 pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
     int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
     int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
     return x && y && z;
 }
 
-__global__ void raycast_kernel_texture(uchar* image){
+__global__
+void raycast_kernel_texture(uchar* image){
     int tid = getGlobalIdx();
     int y = getBlockId() - (IMAGE_DIM/2);
     int x = getThreadId() - (IMAGE_DIM/2);
@@ -243,7 +257,6 @@ uchar* grow_region_gpu_shared(uchar* data){
     int changed = 1, *gpu_changed;
     stack2_t *time_stack = new_time_stack(256);
     dim3 **sizes = getGridsBlocksGrowRegion(0);
-
     int3 seed = {.x = 50, .y = 300, .z = 300};
     uchar *cudaData, *cudaRegion, *region;
 
