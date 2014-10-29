@@ -235,17 +235,15 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
     //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
 
     int3 pos, voxel;
+    __shared__ uchar sdata[1024];
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    extern __shared__ unsigned char sdata[];
     unsigned int pos_id, bid = getBlockId(), tid = getThreadId();
-    printf("bid: %d\ttid: %d\n", bid, tid);
-    //voxel = getThreadInBlockPos();
+    voxel = getThreadInBlockPos();
 
     //Load into shared memory
-    /*sdata[tid] = data[tid+bid];
-    printf("Test!\n");
+    sdata[tid] = data[tid+bid];
     __syncthreads();
 
     //Check if thread is along one border-edge of the cube or another
@@ -264,7 +262,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
                 pos.z += dz[i];
                 pos_id = getThreadInBlockIndex(pos);
                 if (insideThreadBlock(pos)  &&
-                    !region[tid+bid]     &&
+                    !region[tid+pos_id]     &&
                     abs(sdata[tid] - sdata[pos_id]) < 1){
                     //Write results
                     region[pos_id+bid] = NEW_VOX;
@@ -272,7 +270,7 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
                 }
             }
         }
-    }*/
+    }
 }
 
 uchar* grow_region_gpu_shared(uchar* data){
@@ -307,10 +305,9 @@ uchar* grow_region_gpu_shared(uchar* data){
     for (int i = 0; changed && (256 > i); ++i){
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
-        region_grow_kernel_shared<<<*sizes[0], *sizes[1], sizeof(uchar)*512>>>(
+        region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(
             &cudaData[0], &cudaRegion[0], gpu_changed);
         createCudaEvent(&end);
-        printf("Done with iteration %d...\n", i);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
     }
@@ -345,11 +342,11 @@ int main(int argc, char** argv){
     uchar* region = grow_region_gpu_shared(data);
     printf("Done creating region\n\n");
 
-    uchar* image = raycast_gpu(data, region);
+    /*uchar* image = raycast_gpu(data, region);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_shared_out.bmp");
-    printf("Done with program\n\n");
+    printf("Done with program\n\n");*/
 
     return 0;
 }
