@@ -129,91 +129,6 @@ __host__ __device__ int inside(float3 pos){
     return x && y && z;
 }
 
-// Serial ray casting
-uchar* raycast_serial(uchar* data, uchar* region){
-    uchar* image = (uchar*)malloc(sizeof(uchar)*IMAGE_SIZE);
-    float3 camera = {.x=1000,.y=1000,.z=1000};
-    float3 forward = {.x=-1, .y=-1, .z=-1};
-    float3 z_axis = {.x=0, .y=0, .z = 1};
-
-    float3 right = cross(forward, z_axis);
-    float3 up = cross(right, forward);
-    forward = normalize(forward);
-    right = normalize(right);
-    up = normalize(up);
-
-    float fov = 3.14/4;
-    float pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
-    float step_size = 0.5;
-
-    int cntr = 0;
-    for(int y = -(IMAGE_DIM/2); y < (IMAGE_DIM/2); y++){
-        for(int x = -(IMAGE_DIM/2); x < (IMAGE_DIM/2); x++){
-            float3 screen_center = add(camera, forward);
-            float3 ray = add(add(screen_center,
-                scale(right, x*pixel_width)), scale(up, y*pixel_width));
-            ray = add(ray, scale(camera, -1));
-            ray = normalize(ray);
-            float3 pos = camera;
-            int i = 0;
-            float color = 0;
-            while(color < 255 && i < 5000){
-                i++;
-                pos = add(pos, scale(ray, step_size));   // Update position
-                int r = value_at(pos, region);           // Check if we're in the region
-                color += value_at(pos, data)*(0.01 + r) ;// Update the color based on data value, and if we're in the region
-            }
-            image[(y+(IMAGE_DIM/2))*IMAGE_DIM + (x+(IMAGE_DIM/2))]
-                                        = color > 255 ? 255 : color;
-        }
-        cntr++;
-        if (0 == cntr%10){
-            printf("Done with image row #%d\n", y+(IMAGE_DIM/2));
-        }
-    }
-    return image;
-}
-
-// Serial region growing, same algorithm as in assignment 2
-uchar* grow_region_serial(uchar* data){
-    uchar* region = (uchar*)calloc(sizeof(uchar), DATA_DIM*DATA_DIM*DATA_DIM);
-
-    stack_t* stack = new_stack();
-
-    int3 seed = {.x=50, .y=300, .z=300};
-    push(stack, seed);
-    region[seed.z *DATA_DIM*DATA_DIM + seed.y*DATA_DIM + seed.x] = 1;
-
-    int dx[6] = {-1,1,0,0,0,0};
-    int dy[6] = {0,0,-1,1,0,0};
-    int dz[6] = {0,0,0,0,-1,1};
-
-    while(stack->size > 0){
-        int3 pixel = pop(stack);
-        for(int n = 0; n < 6; n++){
-            int3 candidate = pixel;
-            candidate.x += dx[n];
-            candidate.y += dy[n];
-            candidate.z += dz[n];
-
-            if(!inside(candidate)){
-                continue;
-            }
-
-            if(region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x]){
-                continue;
-            }
-
-            if(similar(data, pixel, candidate)){
-                push(stack, candidate);
-                region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x] = 1;
-            }
-        }
-    }
-
-    return region;
-}
-
 __global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
@@ -296,80 +211,6 @@ uchar* grow_region_gpu(uchar* data){
     gEC(cudaFree(gpu_changed));
 
     return region;
-}
-
-__global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
-    int tid = getGlobalIdx();
-    int y = getBlockId() - (IMAGE_DIM/2);
-    int x = getThreadId() - (IMAGE_DIM/2);
-    float3 z_axis = {.x=0, .y=0, .z = 1};
-    float3 forward = {.x=-1, .y=-1, .z=-1};
-    float3 camera = {.x=1000, .y=1000, .z=1000};
-    float3 right = cross(forward, z_axis);
-    float3 up = cross(right, forward);
-
-    float fov = 3.14/4;
-    up = normalize(up);
-    float step_size = 0.5;
-    right = normalize(right);
-    forward = normalize(forward);
-    float pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
-
-    //Do the raycasting
-    float3 screen_center = add(camera, forward);
-    float3 ray = add(add(screen_center,
-        scale(right, x*pixel_width)), scale(up, y*pixel_width));
-    ray = add(ray, scale(camera, -1));
-    ray = normalize(ray);
-    float3 pos = camera;
-
-    float color = 0;
-    for (int i = 0; 255 > color && (5000 > i); ++i){
-        pos = add(pos, scale(ray, step_size));
-        int r = value_at(pos, region);
-        color += value_at(pos, data)*(0.01+r);
-    }
-    image[tid] = min(color, 255.f);
-    return;
-}
-
-uchar* raycast_gpu(uchar* data, uchar* region){
-    cudaEvent_t start, end;
-    dim3 **sizes = getGridsBlocksRaycasting(0);
-    uchar *cudaImage, *cudaRegion, *cudaData;
-    uchar *image = (uchar*) malloc(imageSize);
-
-    //Malloc image++ on cuda device
-    gEC(cudaMalloc(&cudaData, dataSize));
-    gEC(cudaMalloc(&cudaImage, imageSize));
-    gEC(cudaMalloc(&cudaRegion, dataSize));
-    gEC(cudaMemset(cudaImage, 0, imageSize));
-    //printf("Done mallocing on CUDA device!\n");
-
-    //Copy data and region over to device
-    createCudaEvent(&start);
-    gEC(cudaMemcpy(cudaData, data, dataSize, cudaMemcpyHostToDevice));
-    gEC(cudaMemcpy(cudaRegion, region, dataSize, cudaMemcpyHostToDevice));
-    createCudaEvent(&end);
-    printf("Copying data and region to device took %.4f ms\n\n",
-        getCudaEventTime(start, end));
-
-    createCudaEvent(&start);
-    raycast_kernel<<<*sizes[0], *sizes[1]>>>(cudaData, cudaImage, cudaRegion);
-    createCudaEvent(&end);
-    printf("Calling kernel took %.4f ms\n", getCudaEventTime(start, end));
-
-    //Copy image back from device
-    createCudaEvent(&start);
-    gEC(cudaMemcpy(image, cudaImage, imageSize, cudaMemcpyDeviceToHost));
-    createCudaEvent(&end);
-    printf("Copying image from device took %.4f ms\n\n",
-        getCudaEventTime(start, end));
-
-    gEC(cudaFree(cudaData));
-    gEC(cudaFree(cudaImage));
-    gEC(cudaFree(cudaRegion));
-    return image;
 }
 
 __device__ float valueAtData(float3 pos){
@@ -489,20 +330,14 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 
 int main(int argc, char** argv){
     printf("\nStarting program...\n\n");
-    //print_properties();
 
     uchar* data = create_data();
     printf("Done creating data\n\n");
 
-    //Serial version
-    //uchar* region = grow_region_serial(data);
     uchar* region = grow_region_gpu(data);
     printf("Done creating region\n\n");
 
-    //Serial version
-    //uchar* image = raycast_serial(data, region);
     uchar* image = raycast_gpu_texture(data, region);
-    //uchar* image = raycast_gpu(data, region);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_texture_out.bmp");
