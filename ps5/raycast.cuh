@@ -91,6 +91,7 @@ int getThreadsPerBlock(int device);
 int getMaxThreadsPerSM(int device);
 int getBlocksPerSM(int device, int dim);
 int getKernelThreadAmount(dim3** sizes);
+dim3** getGridsBlocksShared(int device);
 dim3** getGridsBlocksGrowRegion(int device);
 dim3** getGridsBlocksRaycasting(int device);
 void createCudaEvent(cudaEvent_t* cudaEvent);

@@ -235,7 +235,8 @@ __global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* chang
     //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
 
     int3 pos, voxel;
-    __shared__ uchar sdata[1024];
+    int skip[6] = {0,0,0,0,0,0};
+    __shared__ uchar sdata[1000];
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
@@ -277,8 +278,8 @@ uchar* grow_region_gpu_shared(uchar* data){
     //8 rows 8 heigh of 8 depth threads per block
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
+    dim3 **sizes = getGridsBlocksShared(0);
     stack2_t *time_stack = new_time_stack(256);
-    dim3 **sizes = getGridsBlocksGrowRegion(0);
     int3 seed = {.x = 50, .y = 300, .z = 300};
     uchar *cudaData, *cudaRegion, *region;
 
