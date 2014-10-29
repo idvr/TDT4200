@@ -252,9 +252,7 @@ uchar* grow_region_gpu_shared(uchar* data){
     region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
-    printf("%s\n", cudaGetErrorString(cudaGetLastError()));
     gEC(cudaMalloc(&gpu_changed, sizeof(int)));
-    printf("%s\n", cudaGetErrorString(cudaGetLastError()));
     //Malloc image on cuda device
     gEC(cudaMalloc(&cudaData, dataSize));
     //Malloc region on cuda device
@@ -271,12 +269,14 @@ uchar* grow_region_gpu_shared(uchar* data){
         getCudaEventTime(start, end));
 
     for (int i = 0; changed && (256 > i); ++i){
+        printf("Started on iteration %d of loop\n", i);
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
         region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(&cudaData[0], &cudaRegion[0], gpu_changed);
         createCudaEvent(&end);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
+        printf("%s\n", cudaGetErrorString(cudaGetLastError()));
     }
 
     float sum = 0;

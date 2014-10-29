@@ -228,7 +228,7 @@ void gpuAssert(cudaError_t code, const char *file, int line, int abort){
 
 void createCudaEvent(cudaEvent_t* event){
     gEC(cudaEventCreate(event)); gEC(cudaEventRecord(*event, 0));
-    gEC(cudaEventSynchronize(*event)); return;
+    gEC(cudaEventSynchronize(*event));
 }
 
 float getCudaEventTime(cudaEvent_t start, cudaEvent_t end){
