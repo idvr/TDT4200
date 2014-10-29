@@ -60,13 +60,18 @@ float peek(stack2_t* stack, int pos);
 int push(stack2_t* stack, float input);
 stack2_t* new_time_stack(int start_size);
 
+//Accessing textures inside kernel
+__device__ float valueAtData(float3 pos);
+__device__ float valueAtRegion(float3 pos);
+
 //Functions accessible by kernels
-__device__ int getBlockId_3D();
-__device__ int getGlobalIdx_3D_3D();
-__device__ int getBlockThreadId_3D();
+__device__ int getBlockId();
+__device__ int getGlobalIdx();
+__device__ int getBlockThreadId();
+__device__ int getThreadInBlockId();
 __device__ int insideThreadBlock(int3 pos);
 __device__ int getThreadInBlockIndex(int3 pos);
-__device__ int3 getThreadInBlockPos_3D(int tid);
+__device__ int3 getThreadInBlockPos(int tid);
 __host__ __device__ int index(int3 pos);
 __host__ __device__ int inside(int3 pos);
 __host__ __device__ int inside(float3 pos);

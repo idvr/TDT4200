@@ -62,12 +62,12 @@ __host__ __device__ float value_at(float3 pos, uchar* data){
     return c0;
 }
 
-__device__ int getBlockId_3D(){
+__device__ int getBlockId(){
     return blockIdx.x + (blockIdx.y*gridDim.x)
             + (blockIdx.z*gridDim.x*gridDim.y);
 }
 
-__device__ int getBlockThreadId_3D(){
+__device__ int getBlockThreadId(){
     return threadIdx.x + (threadIdx.y*blockDim.x)
             + (threadIdx.z*blockDim.x*blockDim.y);
 }
@@ -82,9 +82,9 @@ __host__ __device__ int index(int z, int y, int x){
         + y*DATA_DIM + x;
 }
 
-__device__ int getGlobalIdx_3D_3D(){
-    int blockId = getBlockId_3D();
-    int threadId = getBlockThreadId_3D() +
+__device__ int getGlobalIdx(){
+    int blockId = getBlockId();
+    int threadId = getBlockThreadId() +
             blockId*(blockDim.x*blockDim.y*blockDim.z);
     return threadId;
 }
@@ -216,7 +216,7 @@ __global__ void region_grow_kernel(uchar* data, uchar* region, int* changed){
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    int tid = getGlobalIdx_3D_3D();
+    int tid = getGlobalIdx();
     int3 pixel = getGlobalPos(tid);
 
     if(NEW_VOX == region[tid]){
@@ -297,9 +297,9 @@ uchar* grow_region_gpu(uchar* data){
 }
 
 __global__ void raycast_kernel(uchar* data, uchar* image, uchar* region){
-    int tid = getGlobalIdx_3D_3D();
-    int y = getBlockId_3D() - (IMAGE_DIM/2);
-    int x = getBlockThreadId_3D() - (IMAGE_DIM/2);
+    int tid = getGlobalIdx();
+    int y = getBlockId() - (IMAGE_DIM/2);
+    int x = getBlockThreadId() - (IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000, .y=1000, .z=1000};
