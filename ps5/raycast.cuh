@@ -69,7 +69,6 @@ __device__ int getBlockId();
 __device__ int getThreadId();
 __device__ int getGlobalIdx();
 __device__ int3 getThreadPosInBlock();
-__device__ int3 addBlockPos(int3 voxel);
 __device__ int insideThreadBlock(int3 voxel);
 __device__ int isThreadOnBlockEdge(int3 voxel);
 __device__ int getThreadInBlockIndex(int3 voxel);
@@ -82,6 +81,7 @@ __host__ __device__ int index(int z, int y, int x);
 __host__ __device__ float3 add(float3 a, float3 b);
 __host__ __device__ float3 scale(float3 a, float b);
 __host__ __device__ float3 cross(float3 a, float3 b);
+__host__ __device__ int3 getGlobalPos(int globalThreadId);
 __host__ __device__ int similar(uchar* data, int3 a, int3 b);
 //Trilinear interpolation
 __host__ __device__ float value_at(float3 post, uchar* data);

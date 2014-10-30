@@ -101,9 +101,20 @@ int3 getThreadPosInBlock(){
 
 __device__
 int getThreadInBlockIndex(int3 pos){
-    return pos.x +
-        (pos.y*blockDim.x) +
-        (pos.z*blockDim.x*blockDim.y);
+    int result = 0;
+    if (0 <= pos.x){
+        result += pos.x;
+    }
+    if (0 <= pos.y){
+        result += pos.y*blockDim.x;
+    }
+    if (0 <= pos.z){
+        result += pos.z*blockDim.x*blockDim.y;
+    }
+    /*if (!insideThreadBlock(pos)){
+        return -1;
+    }*/
+    return result;
 }
 
 __host__ __device__
@@ -257,14 +268,25 @@ uchar* raycast_gpu(uchar* data, uchar* region){
     return image;
 }
 
-__device__
-int3 addBlockPos(int3 voxel){
-    int3 result = {
-        .x = voxel.x + (blockDim.x*blockIdx.x),
-        .y = voxel.y + (blockDim.y*blockIdx.y),
-        .z = voxel.z + (blockDim.z*blockIdx.z)
-    };
-    return result;
+__host__ __device__
+int3 getGlobalPos(int globalThreadId){
+    int3 pos = {
+        .x = globalThreadId,
+            .y = 0, .z = 0};
+
+    //Check if x > (512^2 - 1)
+    if ((IMAGE_SIZE-1) < pos.x){
+        pos.z = pos.x/IMAGE_SIZE;
+        pos.x -= pos.z*IMAGE_SIZE;
+    }
+
+    //Check if x > (512 - 1)
+    if ((IMAGE_DIM-1) < pos.x){
+        pos.y = pos.x/IMAGE_DIM;
+        pos.x -= pos.y*IMAGE_DIM;
+    }
+
+    return pos;
 }
 
 __global__
@@ -275,32 +297,36 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
     const int dz[6] = {0,0,0,0,-1,1};
     unsigned int tid = getThreadId();
     int3 blockVox = getThreadPosInBlock();
-    int3 globalVox = addBlockPos(blockVox);
-    unsigned int globalID = index(globalVox);
+    unsigned int globalIdx = getGlobalIdx();
+    int3 globalVox = getGlobalPos(globalIdx);
 
     //Load into shared memory
-    sdata[tid] = data[globalID];
+    sdata[tid] = data[globalIdx];
     __syncthreads();
 
-    /*if (50 == globalVox.x && 300 == (globalVox.y ) && 300 == globalVox.z){
-        printf("I exist!\n");
-    }*/
-
     //If already discovered or not yet (maybe never) reached; skip it
-    if (!inside(globalVox) || NEW_VOX != region[globalID]){
+    if (!inside(globalVox) || NEW_VOX != region[globalIdx]){
         return;
     }
-    region[globalID] = VISITED;
+    region[globalIdx] = VISITED;
     //printf("I found an old NEW_VOX!\n");
 
     for (int i = 0; i < 6; ++i){
         int3 curPos = blockVox;
+        int3 globalPos = globalVox;
         curPos.x += dx[i];
         curPos.y += dy[i];
         curPos.z += dz[i];
+        globalPos.x += dx[i];
+        globalPos.y += dy[i];
+        globalPos.z += dz[i];
+        /*printf("Checking neighbour %d\n", i);
+        printf("curPos.x: %d curPos.y: %d curPos.z: %d\nglobalPos.x: %d globalPos.y: %d globalPos.z: %d\n\n",
+            curPos.x, curPos.y, curPos.z, globalPos.x,
+            globalPos.y, globalPos.z);*/
+
         int curIndex = getThreadInBlockIndex(curPos);
-        int3 globalPos = addBlockPos(curPos);
-        int globalIndex = index(globalPos);
+        unsigned int globalIndex = index(globalPos);
 
         //If outside or region != 0; skip it
         if (!inside(globalPos) || region[globalIndex]){
@@ -308,28 +334,34 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
         }
 
         //if curPos is a voxel on cube outermost edge(s) and similar == 0
-        if (isThreadOnBlockEdge(curPos) &&
-            !similar(data, globalID, globalIndex)){
-            continue;
-        }
-
-        //If curPos not a voxel on cube outermost edge(s)
-        if (insideThreadBlock(curPos) &&
-            !similar(sdata, tid, curIndex)){
+        if (isThreadOnBlockEdge(curPos)){
+            if(!similar(data, globalIdx, globalIndex)){
+                continue;
+            }
+        } else if (!similar(sdata, tid, curIndex)){
+            //If curPos not a voxel on cube outermost edge(s)
+            /*if (0 == curPos.z){
+                printf("I SHOULD NOT HAPPEN!!!\n");
+                printf("Checking neighbour %d\n", i);
+                printf("curPos.x: %d curPos.y: %d curPos.z: %d\nglobalPos.x: %d globalPos.y: %d globalPos.z: %d\n\n",
+                    curPos.x, curPos.y, curPos.z, globalPos.x,
+                    globalPos.y, globalPos.z);
+            }*/
             continue;
         }
 
         //printf("Found NEW_VOXEL!\n");
         region[globalIndex] = NEW_VOX;
-        *changed = 1;
+        atomicAdd(changed, 1);
+        //*changed = 1;
     }
 }
 
 uchar* grow_region_gpu_shared(uchar* data){
     cudaEvent_t start, end;
-    int changed = 1, *gpu_changed;
+    int changed = 1, *gpu_changed, itrs = 256;
     dim3 **sizes = getGridsBlocksGrowRegion(0);
-    stack2_t *time_stack = new_time_stack(256);
+    stack2_t *time_stack = new_time_stack(itrs);
     uchar *cudaData, *cudaRegion, *region;
 
     region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
@@ -351,17 +383,21 @@ uchar* grow_region_gpu_shared(uchar* data){
     printf("Copying data and region to device took %.4f ms\n",
         getCudaEventTime(start, end));
 
-    for (int i = 0; changed && (256 > i); ++i){
+    for (int i = 0; changed && (itrs > i); ++i){
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
         region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(
             cudaData, cudaRegion, gpu_changed);
+        /*if(10 > i || i%20 == 0){
+            //gEC(cudaDeviceSynchronize());
+            printf("i: %d, GrowRegionError: %s\n",
+                i, cudaGetErrorString(cudaGetLastError()));
+        }*/
         createCudaEvent(&end);
-        cudaDeviceSynchronize();
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-        if(i%20 == 0){
-            printf("Iteration %d, changed = %d\n", i, changed);
+        if (i%20 == 0){
+            printf("i: %d changed: %d\n", i, changed);
         }
     }
 
@@ -385,6 +421,46 @@ uchar* grow_region_gpu_shared(uchar* data){
     return region;
 }
 
+// Serial region growing, same algorithm as in assignment 2
+uchar* grow_region_serial(uchar* data){
+    uchar* region = (uchar*)calloc(sizeof(uchar), DATA_DIM*DATA_DIM*DATA_DIM);
+
+    stack_t* stack = new_stack();
+
+    int3 seed = {.x=50, .y=300, .z=300};
+    push(stack, seed);
+    region[seed.z *DATA_DIM*DATA_DIM + seed.y*DATA_DIM + seed.x] = 1;
+
+    int dx[6] = {-1,1,0,0,0,0};
+    int dy[6] = {0,0,-1,1,0,0};
+    int dz[6] = {0,0,0,0,-1,1};
+
+    while(stack->size > 0){
+        int3 pixel = pop(stack);
+        for(int n = 0; n < 6; n++){
+            int3 candidate = pixel;
+            candidate.x += dx[n];
+            candidate.y += dy[n];
+            candidate.z += dz[n];
+
+            if(!inside(candidate)){
+                continue;
+            }
+
+            if(region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x]){
+                continue;
+            }
+
+            if(similar(data, pixel, candidate)){
+                push(stack, candidate);
+                region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x] = 1;
+            }
+        }
+    }
+
+    return region;
+}
+
 int main(int argc, char** argv){
     printf("\nStarting program...\n\n");
     //print_properties();
@@ -392,7 +468,8 @@ int main(int argc, char** argv){
     uchar* data = create_data();
     printf("Done creating data\n\n");
 
-    uchar* region = grow_region_gpu_shared(data);
+    uchar* region = grow_region_serial(data);
+    //uchar* region = grow_region_gpu_shared(data);
     printf("Done creating region\n\n");
 
     uchar* image = raycast_gpu(data, region);
