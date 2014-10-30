@@ -101,17 +101,6 @@ int3 getThreadPosInBlock(){
 
 __device__
 int getThreadInBlockIndex(int3 pos){
-    /*int result = 0;
-    if (0 <= pos.x){
-        result += pos.x;
-    }
-    if (0 <= pos.y){
-        result += pos.y*blockDim.x;
-    }
-    if (0 <= pos.z){
-        result += pos.z*blockDim.x*blockDim.y;
-    }
-    return result;*/
     if (!insideThreadBlock(pos)){
         return 0;
     }
@@ -313,7 +302,6 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
         return;
     }
     region[globalIdx] = VISITED;
-    //printf("I found an old NEW_VOX!\n");
 
     for (int i = 0; i < 6; ++i){
         int3 curPos = blockVox;
@@ -324,10 +312,6 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
         globalPos.x += dx[i];
         globalPos.y += dy[i];
         globalPos.z += dz[i];
-        /*printf("Checking neighbour %d\n", i);
-        printf("curPos.x: %d curPos.y: %d curPos.z: %d\nglobalPos.x: %d globalPos.y: %d globalPos.z: %d\n\n",
-            curPos.x, curPos.y, curPos.z, globalPos.x,
-            globalPos.y, globalPos.z);*/
 
         int curIndex = getThreadInBlockIndex(curPos);
         unsigned int globalIndex = index(globalPos);
@@ -344,20 +328,11 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
             }
         } else if (!similar(sdata, tid, curIndex)){
             //If curPos not a voxel on cube outermost edge(s)
-            /*if (0 == curPos.z){
-                printf("I SHOULD NOT HAPPEN!!!\n");
-                printf("Checking neighbour %d\n", i);
-                printf("curPos.x: %d curPos.y: %d curPos.z: %d\nglobalPos.x: %d globalPos.y: %d globalPos.z: %d\n\n",
-                    curPos.x, curPos.y, curPos.z, globalPos.x,
-                    globalPos.y, globalPos.z);
-            }*/
             continue;
         }
 
-        //printf("Found NEW_VOXEL!\n");
         region[globalIndex] = NEW_VOX;
-        atomicAdd(changed, 1);
-        //*changed = 1;
+        *changed = 1;
     }
 }
 
@@ -392,17 +367,9 @@ uchar* grow_region_gpu_shared(uchar* data){
         createCudaEvent(&start);
         region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(
             cudaData, cudaRegion, gpu_changed);
-        /*if(10 > i || i%20 == 0){
-            //gEC(cudaDeviceSynchronize());
-            printf("i: %d, GrowRegionError: %s\n",
-                i, cudaGetErrorString(cudaGetLastError()));
-        }*/
         createCudaEvent(&end);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-        if (i%20 == 0){
-            printf("i: %d changed: %d\n", i, changed);
-        }
     }
 
     float sum = 0;
@@ -425,46 +392,6 @@ uchar* grow_region_gpu_shared(uchar* data){
     return region;
 }
 
-// Serial region growing, same algorithm as in assignment 2
-uchar* grow_region_serial(uchar* data){
-    uchar* region = (uchar*)calloc(sizeof(uchar), DATA_DIM*DATA_DIM*DATA_DIM);
-
-    stack_t* stack = new_stack();
-
-    int3 seed = {.x=50, .y=300, .z=300};
-    push(stack, seed);
-    region[seed.z *DATA_DIM*DATA_DIM + seed.y*DATA_DIM + seed.x] = 1;
-
-    int dx[6] = {-1,1,0,0,0,0};
-    int dy[6] = {0,0,-1,1,0,0};
-    int dz[6] = {0,0,0,0,-1,1};
-
-    while(stack->size > 0){
-        int3 pixel = pop(stack);
-        for(int n = 0; n < 6; n++){
-            int3 candidate = pixel;
-            candidate.x += dx[n];
-            candidate.y += dy[n];
-            candidate.z += dz[n];
-
-            if(!inside(candidate)){
-                continue;
-            }
-
-            if(region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x]){
-                continue;
-            }
-
-            if(similar(data, pixel, candidate)){
-                push(stack, candidate);
-                region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x] = 1;
-            }
-        }
-    }
-
-    return region;
-}
-
 int main(int argc, char** argv){
     printf("\nStarting program...\n\n");
     //print_properties();
@@ -472,7 +399,6 @@ int main(int argc, char** argv){
     uchar* data = create_data();
     printf("Done creating data\n\n");
 
-    //uchar* region = grow_region_serial(data);
     uchar* region = grow_region_gpu_shared(data);
     printf("Done creating region\n\n");
 
