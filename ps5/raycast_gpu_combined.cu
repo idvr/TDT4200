@@ -1,23 +1,54 @@
 #include "raycast.cuh"
 
 __device__
-int getBlockId(){
-    return blockIdx.x + (blockIdx.y*gridDim.x)
-            + (blockIdx.z*gridDim.x*gridDim.y);
+int inside(int3 pos){
+    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
+    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
+    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+    return x && y && z;
 }
 
 __device__
-int getGlobalIdx(){
-    int blockId = getBlockId();
-    int threadId = getThreadId() +
-            blockId*(blockDim.x*blockDim.y*blockDim.z);
-    return threadId;
+int inside(float3 pos){
+    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
+    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
+    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+    return x && y && z;
+}
+
+// float3 utilities
+__device__
+float3 normalize(float3 v){
+    float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
+    v.x /= l;
+    v.y /= l;
+    v.z /= l;
+    return v;
 }
 
 __device__
-int getThreadId(){
-    return threadIdx.x + (threadIdx.y*blockDim.x)
-            + (threadIdx.z*blockDim.x*blockDim.y);
+float3 add(float3 a, float3 b){
+    a.x += b.x;
+    a.y += b.y;
+    a.z += b.z;
+    return a;
+}
+
+__device__
+float3 scale(float3 a, float b){
+    a.x *= b;
+    a.y *= b;
+    a.z *= b;
+    return a;
+}
+
+__device__
+float3 cross(float3 a, float3 b){
+    float3 c;
+    c.x = a.y*b.z - a.z*b.y;
+    c.y = a.z*b.x - a.x*b.z;
+    c.z = a.x*b.y - a.y*b.x;
+    return c;
 }
 
 __device__
@@ -33,79 +64,106 @@ float valueAtRegion(float3 pos){
 }
 
 __device__
-int insideThreadBlock(int3 pos){
-    int x = (pos.x >= 0 && pos.x < blockIdx.x);
-    int y = (pos.y >= 0 && pos.y < blockIdx.y);
-    int z = (pos.z >= 0 && pos.z < blockIdx.z);
-    return x && y && z;
-}
-
-__device__
-int3 getThreadInBlockPos(int tid){
-    int3 pos = {.y = 0, .z = 0,
-        .x = getThreadId()};
-    int zd = gridDim.y*gridDim.z;
-    int yd = gridDim.y;
-    if ((zd-1) > pos.x){
-        pos.z = pos.x/zd;
-        pos.x -= pos.z*zd;
-    }
-    if ((yd-1) > pos.x){
-        pos.y = pos.x/yd;
-        pos.x -= pos.y*yd;
-    }
+int3 getThreadPosInBlock(){
+    int3 pos = {
+        .x = threadIdx.x,
+        .y = threadIdx.y,
+        .z = threadIdx.z};
     return pos;
 }
 
 __device__
 int getThreadInBlockIndex(int3 pos){
-    int tid = pos.x;
-    tid += pos.y*gridDim.y;
-    tid += pos.z*gridDim.y*gridDim.z;
-    return tid;
+    if (!insideThreadBlock(pos)){
+        return 0;
+    }
+    return pos.x +
+        (pos.y*blockDim.x) +
+        (pos.z*blockDim.x*blockDim.y);
 }
 
-// float3 utilities
-__host__ __device__
-float3 cross(float3 a, float3 b){
-    float3 c;
-    c.x = a.y*b.z - a.z*b.y;
-    c.y = a.z*b.x - a.x*b.z;
-    c.z = a.x*b.y - a.y*b.x;
-    return c;
-}
-
-__host__ __device__
-float3 normalize(float3 v){
-    float l = sqrt(v.x*v.x + v.y*v.y + v.z*v.z);
-    v.x /= l;
-    v.y /= l;
-    v.z /= l;
-    return v;
-}
-
-__host__ __device__
-float3 add(float3 a, float3 b){
-    a.x += b.x;
-    a.y += b.y;
-    a.z += b.z;
-    return a;
-}
-
-__host__ __device__
-float3 scale(float3 a, float b){
-    a.x *= b;
-    a.y *= b;
-    a.z *= b;
-    return a;
-}
-
-__host__ __device__
-int inside(float3 pos){
-    int x = (pos.x >= 0 && pos.x < DATA_DIM-1);
-    int y = (pos.y >= 0 && pos.y < DATA_DIM-1);
-    int z = (pos.z >= 0 && pos.z < DATA_DIM-1);
+__device__
+int insideThreadBlock(int3 pos){
+    int x = (pos.x >= 0 && pos.x < blockDim.x);
+    int y = (pos.y >= 0 && pos.y < blockDim.y);
+    int z = (pos.z >= 0 && pos.z < blockDim.z);
     return x && y && z;
+}
+
+__device__
+int index(int3 pos){
+    return pos.z*IMAGE_SIZE
+        + pos.y*DATA_DIM + pos.x;
+}
+
+__device__
+int index(int z, int y, int x){
+    return z*IMAGE_SIZE
+        + y*DATA_DIM + x;
+}
+
+__device__
+int isThreadOnBlockEdge(int3 voxel){
+    //Check if thread is along one border-edge of the cube or another
+    if (0 == voxel.x || //if along plane x == 0
+        0 == voxel.y || //if along plane y == 0
+        0 == voxel.z || //if along plane z == 0
+        (blockDim.x-1 == voxel.x)|| //if along plane x == max value
+        (blockDim.y-1 == voxel.y)|| //if along plane y == max value
+        (blockDim.z-1 == voxel.z)){ //if along plane z == max value
+        return 1;
+    }
+    return 0;
+}
+
+__device__
+int3 getGlobalPos(int globalThreadId){
+    int3 pos = {
+        .x = globalThreadId,
+            .y = 0, .z = 0};
+
+    //Check if x > (512^2 - 1)
+    if ((IMAGE_SIZE-1) < pos.x){
+        pos.z = pos.x/IMAGE_SIZE;
+        pos.x -= pos.z*IMAGE_SIZE;
+    }
+
+    //Check if x > (512 - 1)
+    if ((IMAGE_DIM-1) < pos.x){
+        pos.y = pos.x/IMAGE_DIM;
+        pos.x -= pos.y*IMAGE_DIM;
+    }
+
+    return pos;
+}
+
+__device__
+int getBlockId(){
+    return (blockIdx.x +
+        (blockIdx.y*gridDim.x) +
+        (blockIdx.z*gridDim.x*gridDim.y)) /*
+        (blockDim.x*blockDim.y*blockDim.z)*/;
+}
+
+__device__
+int getThreadId(){
+    return threadIdx.x +
+        (threadIdx.y*blockDim.x) +
+        (threadIdx.z*blockDim.x*blockDim.y);
+}
+
+__device__
+int getGlobalIdx(){
+    return getThreadId() +
+        (getBlockId() *
+        (blockDim.x*blockDim.y*blockDim.z));
+}
+
+__device__
+int similar(uchar* data, int idx, int idy){
+    uchar va = data[idx];
+    uchar vb = data[idy];
+    return (abs(va-vb) < 1);
 }
 
 __global__
@@ -214,54 +272,69 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
     return image;
 }
 
-__global__ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
-    extern __shared__ unsigned char sdata[];
-    //Load into shared memory
-    __shared__ int3 pos, pixel;
-    __shared__ unsigned int pos_id, bid, tid;
+__global__
+void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
+    __shared__ uchar sdata[1000];
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    bid = getBlockId();
-    tid = getThreadInBlockId();
-    pixel = getThreadInBlockPos(tid);
-    sdata[tid] = data[tid+bid];
-    //Constant factor with 512 threads per block of shared memory used:
-    //3*6 (dx,dy,dz) + 8*512 (thread specific helpers) = 18 + 4096 = 4114
-    //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
+    unsigned int tid = getThreadId();
+    int3 blockVox = getThreadPosInBlock();
+    unsigned int globalIdx = getGlobalIdx();
+    int3 globalVox = getGlobalPos(globalIdx);
+
+    //Load into shared memory
+    sdata[tid] = data[globalIdx];
     __syncthreads();
 
-    //Process shared memory (non-synchronizing version)
-    if(NEW_VOX == region[tid+bid]){
-        region[tid+bid] = VISITED;
-        for (int i = 0; i < 6; ++i){
-            pos = pixel;
-            pos.x += dx[i];
-            pos.y += dy[i];
-            pos.z += dz[i];
-            pos_id = getThreadInBlockIndex(pos);
-            if (insideThreadBlock(pos)  &&
-                !region[pos_id+bid]     &&
-                abs(sdata[tid] - sdata[pos_id]) < 1){
-                //Write results
-                region[pos_id+bid] = NEW_VOX;
-                *changed = 1;
-            }
+    //If already discovered or not yet (maybe never) reached; skip it
+    if (!inside(globalVox) || NEW_VOX != region[globalIdx]){
+        return;
+    }
+    region[globalIdx] = VISITED;
+
+    for (int i = 0; i < 6; ++i){
+        int3 curPos = blockVox;
+        int3 globalPos = globalVox;
+        curPos.x += dx[i];
+        curPos.y += dy[i];
+        curPos.z += dz[i];
+        globalPos.x += dx[i];
+        globalPos.y += dy[i];
+        globalPos.z += dz[i];
+
+        int curIndex = getThreadInBlockIndex(curPos);
+        unsigned int globalIndex = index(globalPos);
+
+        //If outside or region != 0; skip it
+        if (!inside(globalPos) || region[globalIndex]){
+            continue;
         }
+
+        //if curPos is a voxel on cube outermost edge(s) and similar == 0
+        if (isThreadOnBlockEdge(curPos)){
+            if(!similar(data, globalIdx, globalIndex)){
+                continue;
+            }
+        } else if (!similar(sdata, tid, curIndex)){
+            //If curPos not a voxel on cube outermost edge(s)
+            continue;
+        }
+
+        region[globalIndex] = NEW_VOX;
+        *changed = 1;
     }
 }
 
 uchar* grow_region_gpu_shared(uchar* data){
-    //8 rows 8 heigh of 8 depth threads per block
     cudaEvent_t start, end;
-    int changed = 1, *gpu_changed;
-    stack2_t *time_stack = new_time_stack(256);
+    int changed = 1, *gpu_changed, itrs = 256;
     dim3 **sizes = getGridsBlocksGrowRegion(0);
-    int3 seed = {.x = 50, .y = 300, .z = 300};
+    stack2_t *time_stack = new_time_stack(itrs);
     uchar *cudaData, *cudaRegion, *region;
 
     region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
-    region[seed.z*IMAGE_SIZE + seed.y*DATA_DIM + seed.x] = NEW_VOX;
+    region[300*IMAGE_SIZE + 300*DATA_DIM + 50] = NEW_VOX;
     //printf("Done instantiating variables...\n");
 
     gEC(cudaMalloc(&gpu_changed, sizeof(int)));
@@ -269,7 +342,6 @@ uchar* grow_region_gpu_shared(uchar* data){
     gEC(cudaMalloc(&cudaData, dataSize));
     //Malloc region on cuda device
     gEC(cudaMalloc(&cudaRegion, dataSize));
-    gEC(cudaMemset(cudaRegion, 0, dataSize));
     //printf("Done mallocing on CUDA device!\n");
 
     //Copy image and region over to device
@@ -280,15 +352,14 @@ uchar* grow_region_gpu_shared(uchar* data){
     printf("Copying data and region to device took %.4f ms\n",
         getCudaEventTime(start, end));
 
-    for (int i = 0; changed && (256 > i); ++i){
-        printf("Started on iteration %d of loop\n", i);
+    for (int i = 0; changed && (itrs > i); ++i){
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
-        region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(&cudaData[0], &cudaRegion[0], gpu_changed);
+        region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(
+            cudaData, cudaRegion, gpu_changed);
         createCudaEvent(&end);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
-        printf("%s\n", cudaGetErrorString(cudaGetLastError()));
     }
 
     float sum = 0;
@@ -313,7 +384,6 @@ uchar* grow_region_gpu_shared(uchar* data){
 
 int main(int argc, char** argv){
     printf("\nStarting program...\n\n");
-    //print_properties();
 
     uchar* data = create_data();
     printf("Done creating data\n\n");
