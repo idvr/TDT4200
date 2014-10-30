@@ -84,9 +84,9 @@ int getThreadId(){
 
 __device__
 int insideThreadBlock(int3 pos){
-    int x = (pos.x >= 0 && pos.x < blockIdx.x);
-    int y = (pos.y >= 0 && pos.y < blockIdx.y);
-    int z = (pos.z >= 0 && pos.z < blockIdx.z);
+    int x = (pos.x >= 0 && pos.x < blockDim.x);
+    int y = (pos.y >= 0 && pos.y < blockDim.y);
+    int z = (pos.z >= 0 && pos.z < blockDim.z);
     return x && y && z;
 }
 
@@ -124,7 +124,31 @@ int getGlobalIdx(){
             getThreadId();
 }
 
-__host__ __device__
+__device__
+int isThreadOnBlockEdge(int3 voxel){
+    //Check if thread is along one border-edge of the cube or another
+    if (0 == voxel.x || //if along plane x == 0
+        0 == voxel.y || //if along plane y == 0
+        0 == voxel.z || //if along plane z == 0
+        (blockDim.x-1 == voxel.x)|| //if along plane x == max value
+        (blockDim.y-1 == voxel.y)|| //if along plane y == max value
+        (blockDim.z-1 == voxel.z)){ //if along plane z == max value
+        return 1;
+    }
+    return 0;
+}
+
+__device__
+int3 getVoxelSum(int3 voxA, int3 voxB){
+    int3 result = {
+        .x = voxB.x + voxA.x,
+        .y = voxB.y + voxA.y,
+        .z = voxB.z + voxA.z
+    };
+    return result;
+}
+
+/*__host__ __device__
 int3 getGlobalPos(int globalThreadId){
     int3 pos = {
         .x = globalThreadId,
@@ -143,12 +167,19 @@ int3 getGlobalPos(int globalThreadId){
     }
 
     return pos;
-}
+}*/
 
 __host__ __device__
 int similar(uchar* data, int3 a, int3 b){
     uchar va = data[index(a)];
     uchar vb = data[index(b)];
+    return (abs(va-vb) < 1);
+}
+
+__device__
+int similar(uchar* data, int idx, int idy){
+    uchar va = data[idx];
+    uchar vb = data[idy];
     return (abs(va-vb) < 1);
 }
 
@@ -247,50 +278,75 @@ uchar* raycast_gpu(uchar* data, uchar* region){
     return image;
 }
 
+__device__
+int3 addBlockPos(int3 voxel){
+    int3 result = {
+        .x = voxel.x + (blockDim.x*blockIdx.x),
+        .y = voxel.y + (blockDim.y*blockIdx.y),
+        .z = voxel.z + (blockDim.z*blockIdx.z)
+    };
+    return result;
+}
+
 __global__
 void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
     //Constant factor with 512 threads per block of shared memory used:
     //3*6 (dx,dy,dz) + 8*512 (thread specific helpers) = 18 + 4096 = 4114
     //sdata size = (x)(y)(z) = 8^3 with 8 == (x&y&z)
 
-    int3 pos, voxel;
-    int skip[6] = {0,0,0,0,0,0};
-    __shared__
-uchar sdata[1000];
+    __shared__ uchar sdata[1000];
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    unsigned int pos_id, bid = getBlockId(), tid = getThreadId();
-    voxel = getThreadInBlockPos();
+    unsigned int tid = getThreadId();
+    int3 blockVox = getThreadInBlockPos();
+    int3 globalVox = addBlockPos(blockVox);
+    unsigned int globalID = index(globalVox);
 
     //Load into shared memory
-    sdata[tid] = data[tid+bid];
+    sdata[tid] = data[tid+globalID];
     __syncthreads();
 
-    //Check if thread is along one border-edge of the cube or another
-    if (0 != voxel.x && //if along plane x == 0
-        0 != voxel.x && //if along plane y == 0
-        0 != voxel.y && //if along plane z == 0
-        (blockDim.x-1 != voxel.x)&& //if along plane x == max value
-        (blockDim.y-1 != voxel.y)&& //if along plane y == max value
-        (blockDim.z-1 != voxel.z)){ //if along plane z == max value
-        if(NEW_VOX == region[tid+bid]){
-            region[tid+bid] = VISITED;
-            for (int i = 0; i < 6; ++i){
-                pos = voxel;
-                pos.x += dx[i];
-                pos.y += dy[i];
-                pos.z += dz[i];
-                pos_id = getThreadInBlockIndex(pos);
-                if (insideThreadBlock(pos)  &&
-                    !region[pos_id+bid]     &&
-                    abs(sdata[tid] - sdata[pos_id]) < 1){
-                    //Write results
-                    region[pos_id+bid] = NEW_VOX;
-                    *changed = 1;
-                }
-            }
+    if (50 == globalVox.x && 300 == (globalVox.y&globalVox.z)){
+        printf("I exist!\n");
+    }
+
+    //If already discovered or not yet (maybe never) reached; skip it
+    if (!inside(globalVox) || NEW_VOX != region[tid+globalID]){
+        return;
+    }
+    region[tid+globalID] = VISITED;
+    printf("I found an old NEW_VOX!\n");
+
+    for (int i = 0; i < 6; ++i){
+        int3 curPos = blockVox;
+        curPos.x += dx[i];
+        curPos.y += dy[i];
+        curPos.z += dz[i];
+        int curIndex = getThreadInBlockIndex(curPos);
+        int3 globalPos = addBlockPos(curPos);
+        int globalIndex = index(globalPos);
+
+        //If outside or region != 0; skip it
+        if (!inside(globalPos) || region[globalIndex]){
+            continue;
         }
+
+        //if curPos is a voxel on cube outermost edge(s) and similar == 0
+        if (isThreadOnBlockEdge(curPos) &&
+            !similar(data, globalID, globalIndex)){
+            continue;
+        }
+
+        //If curPos not a voxel on cube outermost edge(s)
+        if (insideThreadBlock(curPos) &&
+            !similar(sdata, tid, curIndex)){
+            continue;
+        }
+
+        printf("Found NEW_VOXEL!\n");
+        region[globalIndex] = NEW_VOX;
+        *changed = 1;
     }
 }
 
@@ -332,7 +388,7 @@ uchar* grow_region_gpu_shared(uchar* data){
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
         if(i%20 == 0){
-            ("Iteration %d...\n", i);
+            printf("Iteration %d...\n", i);
         }
     }
 

@@ -161,12 +161,10 @@ void print_properties(){
         } else{
             printf("Device cannot transfer data between host/device while a kernel is running\n");
         }
+        printf("# of blocks needed when using shared memory(no borders): %zd\n", sizeof(uchar)*((int) ceil(DATA_SIZE/p.sharedMemPerBlock)));
 
-	printf("# of blocks needed when using shared memory(no borders): %zd\n", sizeof(uchar)*((int) ceil(DATA_SIZE/p.sharedMemPerBlock)));
-
-	printf("# of blocks needed when using shared memory w/borders: %d\n", (int) ceil(DATA_SIZE/(DATA_DIM*93)));
-	printf("# of rows with borders per block: %d, total #rows: %d, size per row: %d\n", 93, 95, 514);
-
+        printf("# of blocks needed when using shared memory w/borders: %d\n", (int) ceil(DATA_SIZE/(DATA_DIM*93)));
+        printf("# of rows with borders per block: %d, total #rows: %d, size per row: %d\n", 93, 95, 514);
 
         printf("\n");
     }
