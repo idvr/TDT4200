@@ -111,10 +111,13 @@ int getThreadInBlockIndex(int3 pos){
     if (0 <= pos.z){
         result += pos.z*blockDim.x*blockDim.y;
     }
-    /*if (!insideThreadBlock(pos)){
-        return -1;
-    }*/
     return result;
+    /*if (!insideThreadBlock(pos)){
+        return 0;
+    }
+    return pos.x +
+        (pos.y*blockDim.x) +
+        (pos.z*blockDim.x*blockDim.y);*/
 }
 
 __host__ __device__
