@@ -68,7 +68,7 @@ __device__ float valueAtRegion(float3 pos);
 __device__ int getBlockId();
 __device__ int getThreadId();
 __device__ int getGlobalIdx();
-__device__ int3 getThreadInBlockPos();
+__device__ int3 getThreadPosInBlock();
 __device__ int3 addBlockPos(int3 voxel);
 __device__ int insideThreadBlock(int3 voxel);
 __device__ int isThreadOnBlockEdge(int3 voxel);
