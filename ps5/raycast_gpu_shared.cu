@@ -282,16 +282,16 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
     sdata[tid] = data[globalID];
     __syncthreads();
 
-    if (50 == globalVox.x && 300 == (globalVox.y&globalVox.z)){
+    /*if (50 == globalVox.x && 300 == (globalVox.y ) && 300 == globalVox.z){
         printf("I exist!\n");
-    }
+    }*/
 
     //If already discovered or not yet (maybe never) reached; skip it
     if (!inside(globalVox) || NEW_VOX != region[globalID]){
         return;
     }
     region[globalID] = VISITED;
-    printf("I found an old NEW_VOX!\n");
+    //printf("I found an old NEW_VOX!\n");
 
     for (int i = 0; i < 6; ++i){
         int3 curPos = blockVox;
@@ -319,7 +319,7 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
             continue;
         }
 
-        printf("Found NEW_VOXEL!\n");
+        //printf("Found NEW_VOXEL!\n");
         region[globalIndex] = NEW_VOX;
         *changed = 1;
     }
@@ -328,7 +328,7 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
 uchar* grow_region_gpu_shared(uchar* data){
     cudaEvent_t start, end;
     int changed = 1, *gpu_changed;
-    dim3 **sizes = getGridsBlocksShared(0);
+    dim3 **sizes = getGridsBlocksGrowRegion(0);
     stack2_t *time_stack = new_time_stack(256);
     uchar *cudaData, *cudaRegion, *region;
 
@@ -355,8 +355,9 @@ uchar* grow_region_gpu_shared(uchar* data){
         gEC(cudaMemset(gpu_changed, 0, sizeof(int)));
         createCudaEvent(&start);
         region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(
-            &cudaData[0], &cudaRegion[0], gpu_changed);
+            cudaData, cudaRegion, gpu_changed);
         createCudaEvent(&end);
+        cudaDeviceSynchronize();
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
         if(i%20 == 0){
@@ -394,11 +395,11 @@ int main(int argc, char** argv){
     uchar* region = grow_region_gpu_shared(data);
     printf("Done creating region\n\n");
 
-    /*uchar* image = raycast_gpu(data, region);
+    uchar* image = raycast_gpu(data, region);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_gpu_shared_out.bmp");
-    printf("Done with program\n\n");*/
+    printf("Done with program\n\n");
 
     return 0;
 }
