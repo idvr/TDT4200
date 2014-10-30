@@ -11,7 +11,7 @@ target:=gpu_shared
 all: cpu gpu gpu_shared gpu_texture gpu_combined
 
 get_result:
-	scp gpu:~/tdt4200/ps5/raycast_$(target)_out.bmp ./
+	scp gpu-lab:~/tdt4200/ps5/raycast_$(target)_out.bmp ./
 
 memcheck: $(target)
 	cuda-memcheck optirun ./run_$(target) --no-xorg --no-failsafe

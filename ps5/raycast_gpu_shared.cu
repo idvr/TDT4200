@@ -71,8 +71,8 @@ __device__
 int getBlockId(){
     return (blockIdx.x +
         (blockIdx.y*gridDim.x) +
-        (blockIdx.z*gridDim.x*gridDim.y)) *
-        (blockDim.x*blockDim.y*blockDim.z);
+        (blockIdx.z*gridDim.x*gridDim.y)) /*
+        (blockDim.x*blockDim.y*blockDim.z)*/;
 }
 
 __device__
@@ -131,8 +131,9 @@ int index(int z, int y, int x){
 
 __device__
 int getGlobalIdx(){
-    return getBlockId() +
-            getThreadId();
+    return getThreadId() +
+        (getBlockId() *
+        (blockDim.x*blockDim.y*blockDim.z));
 }
 
 __device__
@@ -468,8 +469,8 @@ int main(int argc, char** argv){
     uchar* data = create_data();
     printf("Done creating data\n\n");
 
-    uchar* region = grow_region_serial(data);
-    //uchar* region = grow_region_gpu_shared(data);
+    //uchar* region = grow_region_serial(data);
+    uchar* region = grow_region_gpu_shared(data);
     printf("Done creating region\n\n");
 
     uchar* image = raycast_gpu(data, region);
