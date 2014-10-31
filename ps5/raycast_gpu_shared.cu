@@ -129,7 +129,7 @@ int getGlobalIdx(){
 }
 
 __device__
-int isThreadOnBlockEdge(int3 voxel){
+int isOnEdgeOfThreadBlock(int3 voxel){
     //Check if thread is along one border-edge of the cube or another
     if (0 == voxel.x || //if along plane x == 0
         0 == voxel.y || //if along plane y == 0
@@ -312,7 +312,7 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
         }
 
         //if curPos is a voxel on cube outermost edge(s) and similar == 0
-        if (isThreadOnBlockEdge(curPos)){
+        if (isOnEdgeOfThreadBlock(curPos)){
             if(!similar(data, globalIdx, globalIndex)){
                 continue;
             }

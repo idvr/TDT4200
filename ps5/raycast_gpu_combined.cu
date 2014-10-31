@@ -313,7 +313,7 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
             }
 
             //if curPos is a voxel on cube outermost edge(s)
-            if (isThreadOnBlockEdge(curPos)){
+            if (isOnEdgeOfThreadBlock(curPos)){
                 //if similar is false for edge voxel
                 if(!similar(data, globalIdx, globalIndex)){
                     continue;

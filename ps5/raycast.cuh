@@ -70,7 +70,7 @@ __device__ int getThreadId();
 __device__ int getGlobalIdx();
 __device__ int3 getThreadPosInBlock();
 __device__ int insideThreadBlock(int3 voxel);
-__device__ int isThreadOnBlockEdge(int3 voxel);
+__device__ int isOnEdgeOfThreadBlock(int3 voxel);
 __device__ int getThreadInBlockIndex(int3 voxel);
 __device__ int similar(uchar* data, int idx, int idy);
 __host__ __device__ int index(int3 pos);
