@@ -243,6 +243,9 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 
     createCudaEvent(&start);
     raycast_kernel_texture<<<*sizes[0], *sizes[1]>>>(cudaImage);
+    if (cudaGetLastError()){
+        printf("%s\n", cudaGetErrorString(cudaGetLastError()));
+    }
     createCudaEvent(&end);
     printf("Calling kernel took %.4f ms\n", getCudaEventTime(start, end));
 
