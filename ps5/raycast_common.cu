@@ -257,10 +257,10 @@ dim3** getGridsBlocksRaycasting(int device){
     sizes[0] = (dim3*) malloc(sizeof(dim3));
     sizes[1] = (dim3*) malloc(sizeof(dim3));
 
-    //Hardcoding blockdim values (16^2 = 512 = DATA_DIM)
-    block.z = 1; grid.x = DATA_DIM/block.x;
+    //Hardcoding blockdim values (32^2 = 512 = DATA_DIM)
+    block.z = 1; grid.z = 1;
     block.y = 32; grid.y = DATA_DIM/block.y;
-    block.x = 32; grid.z = 1;
+    block.x = 32; grid.x = DATA_DIM/block.x;
 
     memcpy(sizes[0], &grid, sizeof(dim3));
     memcpy(sizes[1], &block, sizeof(dim3));

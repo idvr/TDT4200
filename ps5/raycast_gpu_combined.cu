@@ -155,7 +155,8 @@ int similar(uchar* data, int idx, int idy){
 
 __global__
 void raycast_kernel_texture(uchar* image){
-    int y = getBlockId(); int x = getThreadId();
+    int x = threadIdx.x + (blockIdx.x*blockDim.x);
+    int y = threadIdx.y + (blockIdx.y*blockDim.y);
     int tid = x + y*(blockDim.x*blockDim.y*blockDim.z);
     x -= IMAGE_DIM/2; y -= IMAGE_DIM/2;
     float step_size = 0.5, fov = 3.14/4, color = 0,
