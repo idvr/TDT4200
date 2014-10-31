@@ -228,10 +228,20 @@ uchar* grow_region_serial(uchar* data){
 
 __global__
 void region_grow_kernel(uchar* data, uchar* region, int* changed){
+    bool isEmpty = true;
+    int tid = getGlobalIdx();
+    __syncthreads();
+    if (region[tid]){
+        isEmpty = false;
+    }
+    __syncthreads();
+    if (isEmpty){
+        return;
+    }
+
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
-    int tid = getGlobalIdx();
     int3 pixel = getGlobalPos(tid);
 
     if(NEW_VOX == region[tid]){
