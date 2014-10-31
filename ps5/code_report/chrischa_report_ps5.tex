@@ -1,0 +1,73 @@
+%Problem Set 1 LaTeX report for TDT4200
+\documentclass[fontsize=11pt, paper=a4, titlepage]{article}
+\input{../../config} %config.tex file in same directory for all reports
+
+\begin{document}
+
+\begin{center}
+
+{\huge Problem Set 5, Code}\\[0.5cm]
+
+\textsc{\LARGE TDT4200 -}\\[0.5cm]
+\textsc{\large Parallel Computations}\\[1.0cm]
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c}
+        \textsc{Christian Chavez}
+    \end{tabular}
+\end{table}
+
+\end{center}
+\vfill
+\hfill \large{\today}
+\clearpage
+
+\section*{Foreword}
+
+Due to spending one week finding out that the nvcc version (4.X) on gpuXX and
+docXX.idi.ntnu.no does not have the ``-dc''/``--relocatable-device-code=true
+--compile'' flags which comes with the current version of nvcc (5.X) (at least
+on linux distros), as well as not having had access to the lab, so that I could
+turn on the machines I was testing on over SSH outside outside of TA hours, I
+have not had time to finish what has been asked of me in this exercise.
+
+I have not managed to finish two aspects of this, namely complete a version of
+\textit{region_grow_kernel_shared()}, or do this report. I write this now Friday
+night, the 31st of October, after 21:00.
+
+Additional I also wish I would have had time to optimize the code better, since
+other students I know have gotten better results than me.
+
+My hope is that this report will prove my insight into the answers your
+questions were designed to teach me, so that I may salvage some points while not
+finishing as hoped due to these circumstances.
+
+
+\section*{Problem 3, Comparing performance}
+\begin{enumerate}[a)]
+
+    \item \textit{Compare the performance of different block sizes for the two
+GPU versions of region growing and for the two GPU versions of the ray
+casting. Comment on the results.}
+
+    \begin{enumerate}[I)]
+        \item Grow Region comparison:
+        While I did not finish \textit{region_grow_kernel_shared()} with the
+implementation of the halo of voxels and region in shared memory, I did finish
+the implementation of putting \textit{data} into shared memory.
+
+    \end{enumerate}
+
+
+    \item Compare the performance of the two different GPU versions and the CPU
+version of region growing. Comment on the results.
+
+    \item Compare the performance of the two different GPU versions and the CPU
+version of ray casting. Comment on the results.
+
+\end{enumerate}
+
+\vfill
+\hfill \large{\today}
+\end{document}
