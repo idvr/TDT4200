@@ -10,6 +10,11 @@
 #define NEW_VOX 2
 #define VISITED 1
 
+//Best block sizes:
+//growing: 16x8x8
+//shared: 256x2x2
+//raycast: 32x32x1
+
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
 extern size_t dataDim;
