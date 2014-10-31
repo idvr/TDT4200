@@ -142,16 +142,6 @@ int isThreadOnBlockEdge(int3 voxel){
     return 0;
 }
 
-__device__
-int3 getVoxelSum(int3 voxA, int3 voxB){
-    int3 result = {
-        .x = voxB.x + voxA.x,
-        .y = voxB.y + voxA.y,
-        .z = voxB.z + voxA.z
-    };
-    return result;
-}
-
 __host__ __device__
 int similar(uchar* data, int3 a, int3 b){
     uchar va = data[index(a)];
