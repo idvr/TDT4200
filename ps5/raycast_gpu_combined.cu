@@ -244,8 +244,9 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 
     createCudaEvent(&start);
     raycast_kernel_texture<<<*sizes[0], *sizes[1]>>>(cudaImage);
-    if (cudaGetLastError()){
-        printf("%s\n", cudaGetErrorString(cudaGetLastError()));
+    if (cudaSuccess != cudaGetLastError()){
+        printf("Kernel error:\n%s\n\n",
+            cudaGetErrorString(cudaGetLastError()));
     }
     createCudaEvent(&end);
     printf("Calling kernel took %.4f ms\n", getCudaEventTime(start, end));
@@ -362,6 +363,10 @@ uchar* grow_region_gpu_shared(uchar* data){
         createCudaEvent(&start);
         region_grow_kernel_shared<<<*sizes[0], *sizes[1]>>>(
             cudaData, cudaRegion, gpu_changed);
+        if (cudaSuccess != cudaGetLastError()){
+            printf("Kernel error:\n%s\n\n",
+                cudaGetErrorString(cudaGetLastError()));
+        }
         createCudaEvent(&end);
         push(time_stack, getCudaEventTime(start, end));
         gEC(cudaMemcpy(&changed, gpu_changed, sizeof(int), cudaMemcpyDeviceToHost));
