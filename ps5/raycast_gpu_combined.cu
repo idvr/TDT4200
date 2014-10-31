@@ -278,6 +278,7 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
     unsigned int globalIdx = getGlobalIdx();
 
     isEmpty = true;
+    __syncthreads();
     if (region[globalIdx]){
         isEmpty = false;
     }
