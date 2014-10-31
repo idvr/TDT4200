@@ -52,18 +52,6 @@ float3 cross(float3 a, float3 b){
 }
 
 __device__
-float valueAtData(float3 pos){
-    return tex3D(data_texture,
-        pos.x, pos.y, pos.z)*255.f;
-}
-
-__device__
-float valueAtRegion(float3 pos){
-    return tex3D(region_texture,
-        pos.x, pos.y, pos.z)*255.f;
-}
-
-__device__
 int3 getThreadPosInBlock(){
     int3 pos = {
         .x = threadIdx.x,
@@ -103,7 +91,7 @@ int index(int z, int y, int x){
 }
 
 __device__
-int isThreadOnBlockEdge(int3 voxel){
+int isOnEdgeOfThreadBlock(int3 voxel){
     //Check if thread is along one border-edge of the cube or another
     if (0 == voxel.x || //if along plane x == 0
         0 == voxel.y || //if along plane y == 0
@@ -196,8 +184,8 @@ void raycast_kernel_texture(uchar* image){
         if(!inside(pos)){
             continue;
         }
-        int r = valueAtRegion(pos);
-        color += valueAtData(pos)*(0.01+r);
+        int r = tex3D(region_texture, pos.x, pos.y, pos.z)*255.f;
+        color += tex3D(data_texture, pos.x, pos.y, pos.z)*255.f*(0.01+r);
     }
     image[tid] = min(color, 255.f);
 }
