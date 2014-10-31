@@ -157,7 +157,7 @@ __global__
 void raycast_kernel_texture(uchar* image){
     int x = threadIdx.x + (blockIdx.x*blockDim.x);
     int y = threadIdx.y + (blockIdx.y*blockDim.y);
-    int tid = x + y*(blockDim.x*blockDim.y*blockDim.z);
+    int tid = x + y*IMAGE_DIM;
     x -= IMAGE_DIM/2; y -= IMAGE_DIM/2;
     float step_size = 0.5, fov = 3.14/4, color = 0,
         pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
