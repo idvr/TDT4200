@@ -261,71 +261,69 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 
 __global__
 void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
-    int change = 1;
+    //Check first if all of region is empty, then block can return early
+    __shared__ bool isEmpty;
+    unsigned int globalIdx = getGlobalIdx();
+    isEmpty = true;
+    __syncthreads();
+    if (region[globalIdx]){
+        isEmpty = false;
+    }
+    __syncthreads();
+    if (isEmpty){
+        return;
+    }
+
     __shared__ uchar sdata[1024];
     unsigned int tid = getThreadId();
-    unsigned int globalIdx = getGlobalIdx();
+
     //Load into shared memory
     sdata[tid] = data[globalIdx];
-    while(change){
-        change = 0;
-        __shared__ bool isEmpty;
-        isEmpty = true;
+    __syncthreads();
 
-        __syncthreads();
-        if (region[globalIdx]){
-            isEmpty = false;
-        }
-        __syncthreads();
-        if (isEmpty){
-            return;
-        }
+    const int dx[6] = {-1,1,0,0,0,0};
+    const int dy[6] = {0,0,-1,1,0,0};
+    const int dz[6] = {0,0,0,0,-1,1};
+    int3 blockVox = getThreadPosInBlock();
+    int3 globalVox = getGlobalPos(globalIdx);
 
-        const int dx[6] = {-1,1,0,0,0,0};
-        const int dy[6] = {0,0,-1,1,0,0};
-        const int dz[6] = {0,0,0,0,-1,1};
-        int3 blockVox = getThreadPosInBlock();
-        int3 globalVox = getGlobalPos(globalIdx);
+    //If already discovered or not yet (maybe never) reached; skip it
+    if (!inside(globalVox) || NEW_VOX != region[globalIdx]){
+        return;
+    }
+    region[globalIdx] = VISITED;
 
-        //If already discovered or not yet (maybe never) reached; skip it
-        if (!inside(globalVox) || NEW_VOX != region[globalIdx]){
+    for (int i = 0; i < 6; ++i){
+        int3 curPos = blockVox;
+        int3 curPosGlob = globalVox;
+        curPos.x += dx[i];
+        curPos.y += dy[i];
+        curPos.z += dz[i];
+        curPosGlob.x += dx[i];
+        curPosGlob.y += dy[i];
+        curPosGlob.z += dz[i];
+
+        int curIndex = getThreadInBlockIndex(curPos);
+        unsigned int globalIndex = index(curPosGlob);
+
+        //If outside or region != 0; skip it
+        if (!inside(curPosGlob) || region[globalIndex]){
             continue;
         }
-        region[globalIdx] = VISITED;
 
-        for (int i = 0; i < 6; ++i){
-            int3 curPos = blockVox;
-            int3 curPosGlob = globalVox;
-            curPos.x += dx[i];
-            curPos.y += dy[i];
-            curPos.z += dz[i];
-            curPosGlob.x += dx[i];
-            curPosGlob.y += dy[i];
-            curPosGlob.z += dz[i];
-
-            int curIndex = getThreadInBlockIndex(curPos);
-            unsigned int globalIndex = index(curPosGlob);
-
-            //If outside or region != 0; skip it
-            if (!inside(curPosGlob) || region[globalIndex]){
+        //if curPos is a voxel on cube outermost edge(s)
+        if (isOnEdgeOfThreadBlock(curPos)){
+            //if similar is false for edge voxel
+            if(!similar(data, globalIdx, globalIndex)){
                 continue;
             }
-
-            //if curPos is a voxel on cube outermost edge(s)
-            if (isOnEdgeOfThreadBlock(curPos)){
-                //if similar is false for edge voxel
-                if(!similar(data, globalIdx, globalIndex)){
-                    continue;
-                }
-            } else if (!similar(sdata, tid, curIndex)){
-                //If similar == 0 for inner-voxel
-                continue;
-            }
-
-            region[globalIndex] = NEW_VOX;
-            change = 1;
-            *changed = 1;
+        } else if (!similar(sdata, tid, curIndex)){
+            //If similar == 0 for inner-voxel
+            continue;
         }
+
+        region[globalIndex] = NEW_VOX;
+        *changed = 1;
     }
 }
 
