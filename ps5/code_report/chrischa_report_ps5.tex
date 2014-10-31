@@ -23,8 +23,7 @@
 \hfill \large{\today}
 \clearpage
 
-\section*{Foreword}
-
+\subsection*{Foreword}
 Due to spending one week finding out that the nvcc version (4.X) on gpuXX and
 docXX.idi.ntnu.no does not have the ``-dc''/``--relocatable-device-code=true
 --compile'' flags which comes with the current version of nvcc (5.X) (at least
@@ -33,16 +32,21 @@ turn on the machines I was testing on over SSH outside outside of TA hours, I
 have not had time to finish what has been asked of me in this exercise.
 
 I have not managed to finish two aspects of this, namely complete a version of
-\textit{region_grow_kernel_shared()}, or do this report. I write this now Friday
+\verb#region_grow_kernel_shared()#, or do this report. I write this now Friday
 night, the 31st of October, after 21:00.
 
 Additional I also wish I would have had time to optimize the code better, since
 other students I know have gotten better results than me.
 
-My hope is that this report will prove my insight into the answers your
-questions were designed to teach me, so that I may salvage some points while not
-finishing as hoped due to these circumstances.
+While I did not finish \verb#region_grow_kernel_shared()# with the
+implementation of the halo of voxels and region in shared memory, I did finish
+the implementation of putting \textit{data} into shared memory successfully, and
+that will hopefully prove that I've understood the use and benefit of shared
+memory.
 
+My hope is that this report will prove my insight into the answers your
+questions were designed to teach me, so that I may salvage some points even
+while not finishing as hoped.
 
 \section*{Problem 3, Comparing performance}
 \begin{enumerate}[a)]
@@ -52,19 +56,72 @@ GPU versions of region growing and for the two GPU versions of the ray
 casting. Comment on the results.}
 
     \begin{enumerate}[I)]
-        \item Grow Region comparison:
-        While I did not finish \textit{region_grow_kernel_shared()} with the
-implementation of the halo of voxels and region in shared memory, I did finish
-the implementation of putting \textit{data} into shared memory.
+        \item Grow region comparison:\\
+        Using common sense (and the data I've observed while developing the
+code), it stands to reason that block sizes that do not spawn enough threads to
+utilize the maximum amount of resources a SM can offer a block will make the
+kernel take longer to complete.
+
+This because of the SMs limitations resulting in overhead on which blocks can
+run where and when on the GPU.
+
+However, when the thread amount per block is so that the block uses the
+available resources to the maximum, it means more can be done per block. And
+since there's also an overhead cost for scheduling and managing blocks, these
+should be kept to a minimum.
+
+The optimum numbers I found for both \verb#region_grow_kernel_shared()# and
+\verb#region_grow_kernel()#, were \verb#dim3(16, 8, 8)#, due to the 1024
+limitation of threads per block. Grid size then became \verb#dim3(32, 64, 64)#,
+so that the kernel has one thread per voxel in total spread across all the
+blocks, giving us a 1-to-1 mapping of which thread should address which voxel.
+
+        \item Ray cast comparison:\\
+        When it comes to ray casting, the same principle of maximizing work done
+in a block applies. But since this problem is a two-dimensional one, and not a
+three-dimensional one like region growing was, it surved my purpose better to
+keep \verb#.z = 1;#, and spread the threads among \verb#.x, .y# instead for both
+the grids and blocks.
+
+The resulting blocksize giving me a 1-to-1 mapping between each thread and each
+ray became \verb#dim3(32, 32, 1)#, and \verb#dim3(16, 16, 1)# for the resulting
+gridsize.
 
     \end{enumerate}
 
+    \item \textit{Compare the performance of the two different GPU versions and
+the CPU version of region growing. Comment on the results.}
 
-    \item Compare the performance of the two different GPU versions and the CPU
-version of region growing. Comment on the results.
+Due to not finishing the halo and putting region into shared memory (there
+wasn't enough time for me to figure out the indexing in a smart way), I do not
+have data for comparing that one. However, I've managed to get results from 6469 ms and
+upwards into the seven thousandths (7000+ ms).
 
-    \item Compare the performance of the two different GPU versions and the CPU
-version of ray casting. Comment on the results.
+This is still slower than the serial version though, due to this algorithim not
+having enough computations per data element to be beneficial to run on a GPGPU
+architured processing unit.
+
+Even though I optimize kernel calls by making blocks which have no region values
+at all exit quickly, there's still runtime spent on initializing these blocks
+and committing the runtime necessary for these checks. The CPU algorithim
+utilizes a stack instead, so it never looks at region values it doesn't have to.
+
+    \item \textit{Compare the performance of the two different GPU versions and
+the CPU version of ray casting. Comment on the results.}
+
+The \verb#raycast_kernel()# and \verb#raycast_kernel_texture()# however
+benefited greatly from being run on the GPU instead of the CPU. While the CPU
+version of the coded handed out takes more than a minute, the GPU version takes
+around 0.067 ms for me without using texture memory, and around 0.066 ms with
+the use of texture memory.
+
+The gain in time by running on the GPU can be explained by the amount of
+computations per element needed to complete the function being so high, in the
+same way as this number was low for the grow region functions.
+
+A reason why the benefit is so small between the two GPU versions might be that
+the algorithm implemented utilizes locality in much the same way that texture
+memory gives us.
 
 \end{enumerate}
 
