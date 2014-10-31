@@ -129,8 +129,7 @@ __device__
 int getBlockId(){
     return (blockIdx.x +
         (blockIdx.y*gridDim.x) +
-        (blockIdx.z*gridDim.x*gridDim.y)) /*
-        (blockDim.x*blockDim.y*blockDim.z)*/;
+        (blockIdx.z*gridDim.x*gridDim.y));
 }
 
 __device__
@@ -156,11 +155,11 @@ int similar(uchar* data, int idx, int idy){
 
 __global__
 void raycast_kernel_texture(uchar* image){
-    int tid = getGlobalIdx();
-    int y = getBlockId() - (IMAGE_DIM/2);
-    int x = getThreadId() - (IMAGE_DIM/2);
+    int y = getBlockId(); int x = getThreadId();
+    int tid = x + y*(blockDim.x*blockDim.y*blockDim.z);
+    x -= IMAGE_DIM/2; y -= IMAGE_DIM/2;
     float step_size = 0.5, fov = 3.14/4, color = 0,
-            pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
+        pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
     float3 z_axis = {.x=0, .y=0, .z = 1};
     float3 forward = {.x=-1, .y=-1, .z=-1};
     float3 camera = {.x=1000, .y=1000, .z=1000};
