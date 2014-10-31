@@ -275,12 +275,9 @@ uchar* raycast_gpu_texture(uchar* data, uchar* region){
 __global__
 void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
     __shared__ bool isEmpty;
-                isEmpty = true;
-    __shared__ uchar sdata[1000];
-    const int dx[6] = {-1,1,0,0,0,0};
-    const int dy[6] = {0,0,-1,1,0,0};
-    const int dz[6] = {0,0,0,0,-1,1};
     unsigned int globalIdx = getGlobalIdx();
+
+    isEmpty = true;
     if (region[globalIdx]){
         isEmpty = false;
     }
@@ -288,6 +285,11 @@ void region_grow_kernel_shared(uchar* data, uchar* region, int* changed){
     if (isEmpty){
         return;
     }
+
+    __shared__ uchar sdata[1024];
+    const int dx[6] = {-1,1,0,0,0,0};
+    const int dy[6] = {0,0,-1,1,0,0};
+    const int dz[6] = {0,0,0,0,-1,1};
     unsigned int tid = getThreadId();
     int3 blockVox = getThreadPosInBlock();
     int3 globalVox = getGlobalPos(globalIdx);
