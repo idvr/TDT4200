@@ -1,0 +1,155 @@
+%Problem Set 1 LaTeX report for TDT4200
+\documentclass[fontsize=11pt, paper=a4, titlepage]{article}
+\input{../../config} %config.tex file in same directory for all reports
+
+\begin{document}
+
+\begin{center}
+
+{\huge Problem Set 5, Theory}\\[0.5cm]
+
+\textsc{\LARGE TDT4200 -}\\[0.5cm]
+\textsc{\large Parallel Computations}\\[1.0cm]
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{c}
+        \textsc{Christian Chavez}
+    \end{tabular}
+\end{table}
+
+\end{center}
+\vfill
+\hfill \large{\today}
+\clearpage
+
+\section*{Problem 1, CUDA}
+\begin{enumerate}[a)]
+
+    \item
+    \begin{enumerate}[I)]
+
+        \item \textbf{CPU}: \\
+A \textbf{C}entral \textbf{P}rocessing \textbf{U}nit (CPU), is (as the
+name suggest) the main heavy-weight/heavy-duty versatile processing unit which
+does not shy away from using a lot of power (Wattage) for completing its
+calculations. CPUs also feature complicated (and power hungry) architectural
+optimizations like pipelining, cache prediction, and out-of-order execution.
+
+        \item \textbf{GPU}: \\
+A \textbf{G}raphics \textbf{P}rocessing \textbf{U}nit (GPU), is a processing
+unit meant for calculating, drawing, and rendering images at a high rate per
+second. Flaws in the image can be more easily forgiven due to the high density
+of pixels in a picture, which results in erroneous pixels not being very visible
+to the naked human eye. \\
+
+This makes the GPU more single-focused in its use. There are many applications
+where the GPU will outperform a CPU, especially with regards to energy
+efficiency, but a modern CPU is much more versatile than a GPU, allowing it to
+accomplish a much broader range of applications so much faster that in some
+cases it will win on energy-efficiency just because it finished the application
+so much quicker. \\
+
+Hence, its strength is focused on the throughput of the device, more so than on
+the CPU, where the the accuracy of the results counts as well.
+
+\end{enumerate}
+
+    \item Occupancy in CUDA is a metric for how effectively the \textbf{Grids}
+(which consist of \textbf{Blocks}, which in turn consist of \textit{Warps}), are
+utilized in the CUDA processor: $\text{Occupancy} = \frac{\text{Active
+Warps}}{\text{Maximum Active Warps}}$.
+
+    \item A CUDA \textbf{Block} is a 2D subsection of a \textbf{Grid}, which in
+turn consists of \textit{Warps}. Each Warp in turn consists of 32 threads, the
+smallest SIMT. \\
+
+There's additional differences between \textbf{Blocks} and \textit{Warps}, with
+regards to the memory resources they have, and how these are used/controlled.
+
+    \item Local memory is memory local to one specific thread. This memory is
+partitioned out of the general device memory, making it slow since it's
+accessible by any thread in the entire \textbf{Grid}. \\
+
+Shared memory however is only accessible by all threads in the same
+\textbf{Block}. This alleviates some of the memory access control issues,
+permitting operations on this memory to be faster than operations done on local
+memory. \\
+
+Local memory is only used when
+    \begin{itemize}
+        \item Datasize is not known at compile time.
+        \item Datasize will exceed available register space.
+        \item When register spilling occurs.
+    \end{itemize}
+
+\end{enumerate}
+
+\section*{Problem 2, Memory transfers}
+Assumption \textbf{1}: Transfer of data only necessary to GPU. Hence, total
+execution time for CPU is $kn^2 = 10n^2$. \\
+Assumption \textbf{2}: Data must be transferred both \textit{to} and
+\textit{from} the GPU, resulting in total execution time to become: $2rn + kn^2
+= 2rn + n^2 = n(2r+n)$.
+
+\begin{align*}
+    10n^2 &> n(2r+n) \\
+    10n &> 2r+n \\
+    9n &> 2r \\
+    n &> \frac{2r}{9}
+\end{align*}
+
+For it to be faster to use the GPU, $n$ must be larger than $2r/9$.
+
+\section*{Problem 3, Thread divergence}
+\begin{enumerate}[a)]
+
+    \item If the call to
+\begin{lstlisting}[numbers=none]
+__syncthreads();
+\end{lstlisting}
+is not reached by all threads in the same \textbf{Block}, the behavior is
+undefined, meaning that it is just as likely that it will deadlock, as it might
+crash, as it might return successfully, but with erroneous results. \\
+
+The CUDA documentation states that it is possible to put these calls inside
+conditionals, as long as it's guaranteed that all threads in a \textbf{Block}
+will reach said call.
+
+    \item The code in example II) will have the best performance.
+
+    \begin{enumerate}[I)]
+
+        \item This code example will be slower to run, since the code is
+executed by 32 threads simultaneously in a \textit{Warp}. And since a
+\textit{Warp} consists of 32 threads, only $\frac{1}{4}$th of the threads will
+run at a time. The threads satisfying the first conditional will run first, with
+the remaining $\frac{3}{4}$ of the threads will stand by, idling. This will
+repeat for each conditional in the first code example.
+
+        \item This code example will be faster to run, since the threads all
+have the same value in their \begin{lstlisting}[numbers=none]
+blockIdx.x
+\end{lstlisting}
+attributes. Hence, it will run faster since all threads in a block will start at
+the same time, and run concurrently, as opposed to the previous code example.
+
+    \end{enumerate}
+\end{enumerate}
+
+\section*{Problem 4, Memory coalescing}
+
+The first code snippet (\textit{I}) will be the fastest code snippet, due to
+this code snippet utilizing memory coalescing. \\
+
+This because it makes each thread retrieve one element per row in the $n\times
+n$ data array, whilst the other makes each thread retrieve one whole row by
+itself, one thread after another. \\
+
+Memory Coalescing being that the threads retrieve data from consecutive
+locations in memory. AKA that thread $1$ retrieves the next data object after
+thread $0$, and so forth for a subset of the threads.
+
+\vfill
+\hfill \large{\today}
+\end{document}
