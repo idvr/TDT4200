@@ -53,6 +53,7 @@ const char *clErrorStr(cl_int err) {
     default:                                  return "Unknown";
     }
 }
+
 void clError(char *s, cl_int err) {
     if(err != CL_SUCCESS){
         fprintf(stderr,"%s: %s\n",s,clErrorStr(err));
