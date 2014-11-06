@@ -301,21 +301,62 @@ unsigned char* grow_region_serial(unsigned char* data){
     return region;
 }
 
-void grow_region_gpu(unsigned char* data){
+unsigned char* grow_region_gpu(unsigned char* data){
+    /*clGetPlatformIDs(...);
+    clGetDeviceIDs(...);
+    context = clCreateContext(...);
+    queue = clCreateCommandQueue(...);
+    source = load_program_source(...);
+    program = clCreateProgramWithSource(...);
+    err = clBuildProgram(...);
+    kernel = clCreateKernel(...);*/
+    unsigned int numEntries = 10, numPlatforms;
+    cl_platform_id *platforms;
+    clGetPlatformIDs(numEntries, platforms, &numPlatforms);
+    for (int i = 0; i < numPlatforms; ++i){
+        printPlatformInfo(platforms[i]);
+    }
+
+    return NULL;
 }
 
 unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
+    /*clGetPlatformIDs(...);
+    clGetDeviceIDs(...);
+    context = clCreateContext(...);
+    queue = clCreateCommandQueue(...);
+    source = load_program_source(...);
+    program = clCreateProgramWithSource(...);
+    err = clBuildProgram(...);
+    kernel = clCreateKernel(...);*/
+    unsigned int numEntries = 10, numPlatforms;
+    cl_platform_id *platforms;
+    clGetPlatformIDs(numEntries, platforms, &numPlatforms);
+
     return NULL;
 }
 
 
 int main(int argc, char** argv){
+    printf("\nStarting program...\n\n");
 
     unsigned char* data = create_data();
+    printf("Done creating data\n\n");
 
-    unsigned char* region = grow_region_serial(data);
+    //Serial
+    //unsigned char* region = grow_region_serial(data);
+    //OpenCL
+    unsigned char* region = grow_region_gpu(data);
+    printf("Done creating region\n\n");
 
-    unsigned char* image = raycast_serial(data, region);
+    //Serial
+    /*unsigned char* image = raycast_serial(data, region);
+    //*OpenCL
+    //unsigned char* image = raycast_gpu(data, region);
+    printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");
+    printf("Done with program\n\n");*/
+
+    return 0;
 }
