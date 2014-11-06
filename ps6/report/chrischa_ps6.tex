@@ -26,15 +26,45 @@
 \section*{Problem 1, OpenCL}
     \begin{enumerate}[a)]
 
-        \item
+        \item ``\textit{OpenCL} is to vehicles, like \textit{CUDA} is to cars'',
+to paraphrase the famous ``Java is to javascript like cars are to carpets''.
+OpenCL is meant for and used to program across many different platforms, where a
+subset of said platforms include (among other things) Accelerators, FPGAs, GPUs,
+and Nvidia GPUs. On the other hand CUDA is only meant for (and can only work on)
+Nvidia GPUs.
 
-        \item
-        \textit{thread} $==$ \textit{something} \\
-        \textit{thread block} $==$ \textit{something} \\
-        \textit{local memory} $==$ \textit{something} \\
-        \textit{shared memory} $==$ \textit{something} \\
+So while CUDA is older, and in the past has therefore been more mature / had a
+more fully fledged eco-system, OpenCL is catching up, closing that gap of
+difference.
 
-        \item
+CUDA compiles both host and device code at compile time, while OpenCL compiles
+device code at run-time, to enable its potential of being multi-platform.
+
+        \item Table with CUDA and OpenCL equivalents:
+        \begin{table}[h]
+        \begin{center}
+            \begin{tabular}{|c|c|}
+            \hline
+                 \textbf{CUDA}          & \textbf{OpenCL}                                               \\ \hline
+                 \textit{thread}        & $\Rightarrow$ \textit{ẁork-item}                              \\ \hline
+                 \textit{thread block}  & $\Rightarrow$ \textit{work-group}                             \\ \hline
+                 \textit{shared memory} & $\Rightarrow$ \textit{local memory $\Rightarrow$ \_local}     \\ \hline
+                 \textit{local memory}  & $\Rightarrow$ \textit{private memory $\Rightarrow$ \_private} \\ \hline
+            \end{tabular}
+        \end{center}
+        \end{table}
+
+        \item There is no equivalent OpenCL term for the CUDA/Nvidia term
+\textit{warp}, because OpenCL is meant to be multi-platform, while warp is
+hardware defined in CUDA GPUs. AMD has something similar in its GPUs, called
+\textit{wavefront}. These two properties are how many threads execute the same
+instructions on the device, respectively 32 and 64 threads (though this can
+change).
+
+Since this property is hardware defined, OpenCL does not have an equivalent due
+to its intentions of being multi-platform. There would be no ``multi-platform''
+properties of a program that can only run on either CUDA or AMD platforms, due
+to utilizing the warp/wavefront properties of either platform.
 
     \end{enumerate}
 
@@ -88,16 +118,21 @@ $r_2$, and vica versa.
             10c &= r_2 \\
             r_2 &= 10(w - 1.5r_2) \\
             16r_2 &= 10w \\
-            r_2 &= \frac{10}{16}w.
+            r_2 &= \frac{10}{16}w
         \end{align*}
 
         \begin{align*}
             c &= w - \frac{10}{16}w - \frac{10}{31}w \\
-            c &= w - \frac{31\times 10}{31\times 16} - \frac{16\times 10}{16\times 31} \\
+            c &= w - \frac{31\times 10}{31\times 16} - \frac{16\times 10}
+{16\times 31} \\
             c &= w - \frac{310}{496}w - \frac{160}{496}w \\
             c &= w(1-\frac{470}{496}) \\
             c &= \frac{26}{496}w = \frac{13}{248}w
         \end{align*}
+
+        $c + r_1 + r_2 = \frac{13}{248}w + \frac{10}{31}w + \frac{10}{16}w = w$,
+hence this division of labor is the optimimum for minimizing run-time when the
+system has a CPU and two GPUs with these capabilities.
 
     \end{enumerate}
 
