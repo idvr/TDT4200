@@ -50,3 +50,5 @@ ps4/serial
 ps5/run_*
 ps5/*_out.bmp
 ps5/cuda-memcheck.*
+ps6/run_*
+ps6/*_out.bmp
