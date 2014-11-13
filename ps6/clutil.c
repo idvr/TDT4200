@@ -1,6 +1,4 @@
 #include "clutil.h"
-#include <CL/cl.h>
-#include <stdio.h>
 
 const char *clErrorStr(cl_int err) {
     switch (err) {

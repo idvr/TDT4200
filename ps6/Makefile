@@ -10,7 +10,7 @@ target:=raycast
 all: cpu gpu gpu_shared gpu_texture gpu_combined
 
 get_result:
-	scp gpu:~/tdt4200/ps6/raycast_$(target)_out.bmp ./
+	scp gpu:~/tdt4200/ps6/$(target)_out.bmp ./
 
 get_lab_result:
 	scp gpu-lab:~/tdt4200/ps6/raycast_$(target)_out.bmp ./
