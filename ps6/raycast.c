@@ -324,7 +324,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
 
     //Setting up host region
     region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
-    region[50*IMAGE_SIZE + 300*(DATA_DIM + 1)] = 2;
+    region[300*(DATA_DIM*DATA_DIM + DATA_DIM) + 50] = 2;
 
     //Setting up OpenCL versions of data, region, and changed
     gpuRegion = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, region, &err);
@@ -344,7 +344,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
 
     err = clFinish(queue);
     clError("clFinish(before while)", err);
-    printf("Done with setting up DEVICE variables\n");
+    printf("Done with setting up device variables\n");
 
     //Specifying arguments
     err = clSetKernelArg(kernel, 0, sizeof(gpuData), &gpuData);
@@ -443,7 +443,7 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     clError("clEnqueueWriteBuffer(image)", err);
     err = clFinish(queue);
     clError("clFinish(Copying over data to DEVICE)", err);
-    printf("Done with setting up DEVICE variables\n");
+    printf("Done with setting up device variables\n");
 
     //Specifying arguments
     err = clSetKernelArg(kernel, 0, sizeof(gpuData), &gpuData);
@@ -483,21 +483,18 @@ int main(/*int argc, char** argv*/){
     printf("\nStarting program...\n\n");
 
     unsigned char* data = create_data();
-    printf("data address: %p\n", data);
     printf("Done creating data\n\n");
 
     //Serial
     //unsigned char* region = grow_region_serial(data);
     //OpenCL
     unsigned char* region = grow_region_gpu(data);
-    printf("data address: %p\n", data);
     printf("Done creating region\n\n");
 
     //Serial
     //unsigned char* image = raycast_serial(data, region);
     //OpenCL
     unsigned char* image = raycast_gpu(data, region);
-    printf("data address: %p\n", data);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");

@@ -49,7 +49,9 @@ void region(const __global unsigned char* data, __global unsigned char* region, 
     if (region[globalId]){
         isEmpty = 0;
     }
+
     barrier(CLK_LOCAL_MEM_FENCE);
+
     if (isEmpty){
         return;
     }
