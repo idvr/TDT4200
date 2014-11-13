@@ -10,23 +10,19 @@ typedef struct{
     int x;
     int y;
     int z;
-} int3;
+} voxel;
 
-typedef barrier(CLK_LOCAL_MEM_FENCE) blockBarrier;
+int index(voxel);
+int inside(voxel);
+int similar(const __global unsigned char*, int, int);
 
-// Indexing function (note the argument order)
-int index(int z, int y, int x){
-    return x + y*DATA_DIM +
-        z*DATA_DIM*DATA_DIM;
-}
-
-int index(int3 pos){
+int index(voxel pos){
     return pos.x +
         pos.y*DATA_DIM +
         pos.z*DATA_DIM*DATA_DIM;
 }
 
-int inside_int(int3 pos){
+int inside(voxel pos){
     int x = (pos.x >= 0 && pos.x < DATA_DIM);
     int y = (pos.y >= 0 && pos.y < DATA_DIM);
     int z = (pos.z >= 0 && pos.z < DATA_DIM);
@@ -34,54 +30,57 @@ int inside_int(int3 pos){
 }
 
 // Check if two values are similar, threshold can be changed.
-int similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[a.z*DATA_DIM*DATA_DIM + a.y*DATA_DIM + a.x];
-    unsigned char vb = data[b.z*DATA_DIM*DATA_DIM + b.y*DATA_DIM + b.x];
+int similar(const __global unsigned char* data, int a, int b){
+    unsigned char va = data[a];
+    unsigned char vb = data[b];
     return (int) abs(va-vb) < 1;
 }
 
 __kernel
 void region(const __global unsigned char* data, __global unsigned char* region, __global int* changed){
-    __local int isEmpty = 1;
+    __local int isEmpty;
     const int idx = get_global_id(0);
     const int idy = get_global_id(1);
     const int idz = get_global_id(2);
     const int globalId = idz*(IMAGE_SIZE) + idy*DATA_DIM + idx;
-    blockBarrier;
+    isEmpty = 1;
+    barrier(CLK_LOCAL_MEM_FENCE);
 
     //Check if region is empty for this block, if so, exit block
     if (region[globalId]){
         isEmpty = 0;
     }
-    blockBarrier;
+    barrier(CLK_LOCAL_MEM_FENCE);
     if (isEmpty){
         return;
     }
 
-    const int3 globalVox = {.x=idx, .y=idy, .z=idz};
+    const voxel globalVox = {.x=idx, .y=idy, .z=idz};
     if (!inside(globalVox) || 2 != region[globalId]){
         return;
     }
     region[globalId] = 1;
+    //printf("Found VISITED!!\n");
 
     const int dx[6] = {-1,1,0,0,0,0};
     const int dy[6] = {0,0,-1,1,0,0};
     const int dz[6] = {0,0,0,0,-1,1};
     for (int i = 0; i < 6; ++i){
-        int3 curPosGlob = globalVox;
+        voxel curPosGlob = globalVox;
         curPosGlob.x += dx[i];
         curPosGlob.y += dy[i];
         curPosGlob.z += dz[i];
         int curGlobIdx = index(curPosGlob);
 
-        if (!inside(curPosGlob)) || region[curGlobIdx]){
+        if (!inside(curPosGlob) || region[curGlobIdx]){
             continue;
         }
 
-        if (!similar(data, globalId, curPosGlob)){
+        if (!similar(data, globalId, curGlobIdx)){
             continue;
         }
 
+        //printf("Found NEW_VOX!!\n");
         region[curGlobIdx] = 2;
         *changed = 1;
     }
