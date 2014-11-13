@@ -292,16 +292,7 @@ unsigned char* grow_region_serial(unsigned char* data){
 }
 
 unsigned char* grow_region_gpu(unsigned char* data){
-    /*clGetPlatformIDs(...);
-    clGetDeviceIDs(...);
-    context = clCreateContext(...);
-    queue = clCreateCommandQueue(...);
-    source = load_program_source(...);
-    program = clCreateProgramWithSource(...);
-    err = clBuildProgram(...);
-    kernel = clCreateKernel(...);*/
-
-    printf("Entered gpu()\n");
+    printf("Entered grow_region_gpu()\n");
     cl_int err;
     uchar *region;
     int changed = 1;
@@ -339,6 +330,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     clError("clCreateBuffer(gpuData)", err);
     gpuChanged = clCreateBuffer(context, CL_MEM_COPY_HOST_PTR, sizeof(int), &changed, &err);
     clError("clCreateBuffer(gpuChanged)", err);
+    printf("Done with setting up DEVICE variables\n");
 
     //Specifying arguments
     err = clSetKernelArg(kernel, 0, sizeof(gpuData), &gpuData);
@@ -347,6 +339,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     clError("clSetKernelArg(gpuRegion)", err);
     err = clSetKernelArg(kernel, 2, sizeof(gpuChanged), &gpuChanged);
     clError("clSetKernelArg(gpuData)", err);
+    printf("Done with specifying arguments for kernel\n");
 
     //Main body of function
     while(changed){
@@ -358,22 +351,66 @@ unsigned char* grow_region_gpu(unsigned char* data){
         clError("clEnqueueReadBuffer(gpuData-while-loop)", err);
     }
 
+    err = clEnqueueReadBuffer(queue, gpuRegion, CL_TRUE, 0, sizeof(gpuRegion), &region, 0, NULL, NULL);
+    clError("clEnqueueReadBuffer(gpuRegion)", err);
 
-    printf("Done with gpu()\n");
     return region;
 }
 
 unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
-    /*clGetPlatformIDs(...);
-    clGetDeviceIDs(...);
-    context = clCreateContext(...);
-    queue = clCreateCommandQueue(...);
-    source = load_program_source(...);
-    program = clCreateProgramWithSource(...);
-    err = clBuildProgram(...);
-    kernel = clCreateKernel(...);*/
+    printf("Entered raycast_gpu()\n");
+    cl_int err;
+    uchar *image;
+    cl_kernel kernel;
+    cl_context context;
+    cl_device_id device;
+    cl_command_queue queue;
+    cl_platform_id platform;
+    cl_mem gpuRegion, gpuData, gpuImage;
+    unsigned int numEntries = 10, numResults = 0;
+    size_t l_ws[2] = {32, 32}, g_ws[2] = {512, 512};
+    printf("Done setting up variables\n");
 
-    uchar *image = malloc(sizeof(uchar)*IMAGE_SIZE);
+    //OpenCL specific set-up
+    err = clGetPlatformIDs(numEntries, &platform, &numResults);
+    clError("clGetPlatformIDs", err);
+    //printPlatformInfo(platform);
+    err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, &numResults);
+    clError("clGetDeviceIDs", err);
+    context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
+    clError("clCreateContext", err);
+    queue = clCreateCommandQueue(context, device, 0, &err);
+    clError("clCreateCommandQueue", err);
+    kernel = buildKernel("raycast.cl", "raycast", NULL, context, device);
+    printf("Done with OpenCL setup.\n");
+
+    //Setting up host image
+    image = (uchar*) calloc(sizeof(uchar), IMAGE_SIZE);
+
+    //Setting up OpenCL versions of data, region, image
+    gpuRegion = clCreateBuffer(context, CL_MEM_COPY_HOST_PTR, sizeof(uchar)*DATA_SIZE, region, &err);
+    clError("clCreateBuffer(gpuRegion)", err);
+    gpuData = clCreateBuffer(context, CL_MEM_COPY_HOST_PTR, sizeof(uchar)*DATA_SIZE, data, &err);
+    clError("clCreateBuffer(gpuData)", err);
+    gpuImage = clCreateBuffer(context, CL_MEM_COPY_HOST_PTR, sizeof(uchar)*IMAGE_SIZE, &image, &err);
+    clError("clCreateBuffer(gpuChanged)", err);
+    printf("Done with setting up DEVICE variables\n");
+
+    //Specifying arguments
+    err = clSetKernelArg(kernel, 0, sizeof(gpuData), &gpuData);
+    clError("clSetKernelArg(gpuData)", err);
+    err = clSetKernelArg(kernel, 1, sizeof(gpuRegion), &gpuRegion);
+    clError("clSetKernelArg(gpuRegion)", err);
+    err = clSetKernelArg(kernel, 2, sizeof(gpuImage), &gpuImage);
+    clError("clSetKernelArg(gpuImage)", err);
+    printf("Done with specifying arguments for kernel\n");
+
+    //Main body of function
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, g_ws, l_ws, 0, NULL, NULL);
+
+    //Copy back to host
+    err = clEnqueueReadBuffer(queue, gpuImage, CL_TRUE, 0, sizeof(gpuImage), &image, 0, NULL, NULL);
+    clError("clEnqueueReadBuffer(gpuImage)", err);
 
     return image;
 }
@@ -386,15 +423,15 @@ int main(/*int argc, char** argv*/){
     printf("Done creating data\n\n");
 
     //Serial
-    //unsigned char* region = grow_region_serial(data);
+    unsigned char* region = grow_region_serial(data);
     //OpenCL
-    unsigned char* region = grow_region_gpu(data);
+    //unsigned char* region = grow_region_gpu(data);
     printf("Done creating region\n\n");
 
     //Serial
-    unsigned char* image = raycast_serial(data, region);
+    //unsigned char* image = raycast_serial(data, region);
     //OpenCL
-    //unsigned char* image = raycast_gpu(data, region);
+    unsigned char* image = raycast_gpu(data, region);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");
