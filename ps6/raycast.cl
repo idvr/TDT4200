@@ -1,3 +1,6 @@
+// image is 2D, total size is IMAGE_DIM x IMAGE_DIM
+#define IMAGE_DIM 512
+#define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
 
 typedef struct{
     float x;
@@ -59,24 +62,24 @@ floatVox scale(floatVox a, float b){
 }
 // Checks if position is inside the volume (floatVox and intVox versions)
 int inside_float(floatVox pos){
-    int x = (pos.x >= 0 && pos.x < (512)-1);
-    int y = (pos.y >= 0 && pos.y < (512)-1);
-    int z = (pos.z >= 0 && pos.z < (512)-1);
+    int x = (pos.x >= 0 && pos.x < (IMAGE_DIM)-1);
+    int y = (pos.y >= 0 && pos.y < (IMAGE_DIM)-1);
+    int z = (pos.z >= 0 && pos.z < (IMAGE_DIM)-1);
 
     return x && y && z;
 }
 
 int inside(intVox pos){
-    int x = (pos.x >= 0 && pos.x < 512);
-    int y = (pos.y >= 0 && pos.y < 512);
-    int z = (pos.z >= 0 && pos.z < 512);
+    int x = (pos.x >= 0 && pos.x < IMAGE_DIM);
+    int y = (pos.y >= 0 && pos.y < IMAGE_DIM);
+    int z = (pos.z >= 0 && pos.z < IMAGE_DIM);
     return x && y && z;
 }
 
 // Indexing function (note the argument order)
 int index(int z, int y, int x){
-    return (z*512*512)
-            + y*(512) + x;
+    return (z*IMAGE_DIM*IMAGE_DIM)
+            + y*(IMAGE_DIM) + x;
 }
 
 // Trilinear interpolation
@@ -116,8 +119,8 @@ void raycast(const __global unsigned char* data, const __global unsigned char* r
     const int idx = get_global_id(0);
     const int idy = get_global_id(1);
 
-    const int y = idy - (512/2);
-    const int x = idx - (512/2);
+    const int y = idy - (IMAGE_DIM/2);
+    const int x = idx - (IMAGE_DIM/2);
     floatVox z_axis = {.x=0, .y=0, .z = 1};
     floatVox forward = {.x=-1, .y=-1, .z=-1};
     floatVox camera = {.x=1000, .y=1000, .z=1000};
@@ -131,7 +134,7 @@ void raycast(const __global unsigned char* data, const __global unsigned char* r
 
     float fov = 3.14/4;
     float step_size = 0.5;
-    float pixel_width = tan(fov/2.0)/(512/2);
+    float pixel_width = tan(fov/2.0)/(IMAGE_DIM/2);
 
     //Do the raycasting
     floatVox screen_center = add(camera, forward);
@@ -149,6 +152,6 @@ void raycast(const __global unsigned char* data, const __global unsigned char* r
         int r = value_at(pos, region);
         color += value_at(pos, data)*(0.01+r);
     }
-    image[idx + idy*512] = min(color, 255.f);
+    image[idx + idy*IMAGE_DIM] = min(color, 255.f);
     return;
 }

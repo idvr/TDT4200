@@ -17,7 +17,6 @@ typedef struct{
     int z;
 } int3;
 
-
 // Stack for the serial region growing
 typedef struct{
     int size;
@@ -86,7 +85,6 @@ float3 scale(float3 a, float b){
 
     return a;
 }
-
 
 // Fills data with values
 unsigned char func(int x, int y, int z){
