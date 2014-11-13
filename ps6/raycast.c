@@ -228,6 +228,9 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
             while(color < 255 && i < 5000){
                 i++;
                 pos = add(pos, scale(ray, step_size));          // Update position
+                if (!inside_float(pos)){
+                    continue;
+                }
                 int r = value_at(pos, region);                  // Check if we're in the region
                 color += value_at(pos, data)*(0.01 + r) ;       // Update the color based on data value, and if we're in the region
             }
@@ -372,10 +375,19 @@ unsigned char* grow_region_gpu(unsigned char* data){
         printf("Iteration: %d, changed: %d\n", cntr, changed);
     } while(changed);
 
+    //Copy region back to host
     err = clEnqueueReadBuffer(queue, gpuRegion, CL_TRUE, 0, dataSize, region, 0, NULL, NULL);
     clError("clEnqueueReadBuffer(gpuRegion)", err);
     err = clFinish(queue);
     clError("clFinish(copying region back to host)", err);
+
+    //Free cl memory objects
+    err = clReleaseMemObject(gpuData);
+    clError("clReleaseMemObject(gpuData)", err);
+    err = clReleaseMemObject(gpuRegion);
+    clError("clReleaseMemObject(gpuRegion)", err);
+    err = clReleaseMemObject(gpuChanged);
+    clError("clReleaseMemObject(gpuChanged)", err);
 
     return region;
 }
@@ -446,11 +458,19 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     err = clFinish(queue);
         clError("clFinish(Kernel Call)", err);
 
-    //Copy back to host
+    //Copy image back to host
     err = clEnqueueReadBuffer(queue, gpuImage, CL_TRUE, 0, imageSize, image, 0, NULL, NULL);
     clError("clEnqueueReadBuffer(gpuImage)", err);
     err = clFinish(queue);
     clError("clFinish(Copying image back to device)", err);
+
+    //Free cl memory objects
+    err = clReleaseMemObject(gpuData);
+    clError("clReleaseMemObject(gpuData)", err);
+    err = clReleaseMemObject(gpuImage);
+    clError("clReleaseMemObject(gpuImage)", err);
+    err = clReleaseMemObject(gpuRegion);
+    clError("clReleaseMemObject(gpuRegion)", err);
 
     return image;
 }
@@ -464,7 +484,9 @@ int main(/*int argc, char** argv*/){
     //Serial
     //unsigned char* region = grow_region_serial(data);
     //OpenCL
+    printf("data address: %p\n", data);
     unsigned char* region = grow_region_gpu(data);
+    printf("data address: %p\n", data);
     printf("Done creating region\n\n");
 
     //Serial
@@ -474,7 +496,11 @@ int main(/*int argc, char** argv*/){
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");
-    printf("Done with program\n\n");
 
+    free(data);
+    free(image);
+    free(region);
+
+    printf("Done with program\n\n");
     return 0;
 }
