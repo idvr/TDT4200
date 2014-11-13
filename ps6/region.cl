@@ -38,12 +38,11 @@ int similar(const __global unsigned char* data, int a, int b){
 
 __kernel
 void region(const __global unsigned char* data, __global unsigned char* region, __global int* changed){
-    __local int isEmpty;
+    int isEmpty = 1;
     const int idx = get_global_id(0);
     const int idy = get_global_id(1);
     const int idz = get_global_id(2);
     const int globalId = idz*(IMAGE_SIZE) + idy*DATA_DIM + idx;
-    isEmpty = 1;
     barrier(CLK_LOCAL_MEM_FENCE);
 
     //Check if region is empty for this block, if so, exit block
