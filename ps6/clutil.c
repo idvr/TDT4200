@@ -67,18 +67,23 @@ void printPlatformInfo(cl_platform_id platform){
     printf("===== Platform info ====\n");
 
     err = clGetPlatformInfo(platform, CL_PLATFORM_PROFILE, 100, paramValue, &returnSize);
+    clError("clGetPlatformInfo(PROFILE)", err);
     printf("Platform profile:\t%s\n", paramValue);
 
     err = clGetPlatformInfo(platform, CL_PLATFORM_VERSION, 100, paramValue, &returnSize);
+    clError("clGetPlatformInfo(VERSION)", err);
     printf("Platform version:\t%s\n", paramValue);
 
     err = clGetPlatformInfo(platform, CL_PLATFORM_NAME, 100, paramValue, &returnSize);
+    clError("clGetPlatformInfo(NAME)", err);
     printf("Platform name:\t\t%s\n", paramValue);
 
     err = clGetPlatformInfo(platform, CL_PLATFORM_VENDOR, 100, paramValue, &returnSize);
+    clError("clGetPlatformInfo(VENDOR)", err);
     printf("Platform vendor:\t%s\n", paramValue);
 
     err = clGetPlatformInfo(platform, CL_PLATFORM_EXTENSIONS, 100, paramValue, &returnSize);
+    clError("clGetPlatformInfo(EXTENSIONS)", err);
     printf("Platform extensions:\t");
     if(returnSize > 0){
         printf("%s\n", paramValue);
@@ -100,21 +105,27 @@ void printDeviceInfo(cl_device_id device){
     printf("==== Device info ====\n");
 
     err = clGetDeviceInfo(device, CL_DEVICE_NAME, 100, paramValueString, &returnSize);
+    clError("clGetDeviceInfo(NAME)", err);
     printf("Device name:\t\t%s\n", paramValueString);
 
     err = clGetDeviceInfo(device, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(cl_ulong), &paramValueUlong, &returnSize);
+    clError("clGetDeviceInfo(GLOBAL_MEM_SIZE)", err);
     printf("Device global memory:\t%lu\n", paramValueUlong);
 
     err = clGetDeviceInfo(device, CL_DEVICE_MAX_CLOCK_FREQUENCY, sizeof(cl_uint), &paramValueUint, &returnSize);
+    clError("clGetDeviceInfo(MAX_CLOCK_FREQUENCY)", err);
     printf("Device max frequency:\t%u\n", paramValueUint);
 
     err = clGetDeviceInfo(device, CL_DEVICE_MAX_COMPUTE_UNITS, sizeof(cl_uint), &paramValueUint, &returnSize);
+    clError("clGetDeviceInfo(COMPUTE_UNITS)", err);
     printf("Device compute units:\t%u\n", paramValueUint);
 
     err = clGetDeviceInfo(device, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(cl_ulong), &paramValueUlong, &returnSize);
+    clError("clGetDeviceInfo(MAX_MEM_ALLOC_SIZE)", err);
     printf("Max size of memory allocation:\t%lu\n", paramValueUlong);
 
     err = clGetDeviceInfo(device, CL_DEVICE_MEM_BASE_ADDR_ALIGN, sizeof(cl_uint), &paramValueUint, &returnSize);
+    clError("clGetDeviceInfo(MEM_BASE_ADDR_ALIGN)", err);
     printf("Device memory alignment:\t%u\n", paramValueUint);
 
     printf("\n\n");
