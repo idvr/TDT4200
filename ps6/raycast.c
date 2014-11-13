@@ -491,19 +491,20 @@ int main(/*int argc, char** argv*/){
 
     unsigned char* data = create_data();
     printf("Done creating data\n\n");
+    printf("data address: %p\n", data);
 
     //Serial
-    //unsigned char* region = grow_region_serial(data);
+    unsigned char* region = grow_region_serial(data);
     //OpenCL
-    printf("data address: %p\n", data);
-    unsigned char* region = grow_region_gpu(data);
-    printf("data address: %p\n", data);
+    /*unsigned char* region = grow_region_gpu(data);
+    printf("data address: %p\n", data);*/
     printf("Done creating region\n\n");
 
     //Serial
-    unsigned char* image = raycast_serial(data, region);
+    //unsigned char* image = raycast_serial(data, region);
     //OpenCL
-    //unsigned char* image = raycast_gpu(data, region);
+    unsigned char* image = raycast_gpu(data, region);
+    printf("data address: %p\n", data);
     printf("Done creating image\n\n");
 
     write_bmp(image, IMAGE_DIM, IMAGE_DIM, "raycast_out.bmp");
