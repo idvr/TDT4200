@@ -10,7 +10,6 @@
 // image is 2D, total size is IMAGE_DIM x IMAGE_DIM
 #define IMAGE_DIM 512
 #define IMAGE_SIZE (IMAGE_DIM*IMAGE_DIM)
-#define imageSize (sizeof(uchar)*IMAGE_SIZE)
 
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512

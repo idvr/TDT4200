@@ -300,6 +300,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
     cl_command_queue queue;
     cl_platform_id platform;
     cl_mem gpuRegion, gpuData, gpuChanged;
+    size_t dataSize = sizeof(uchar)*DATA_SIZE;
     unsigned int numEntries = 10, numResults = 0;
     size_t /*l_ws[3]={16, 8, 8},*/ g_ws[3] = {512, 512, 512};
     printf("Done setting up variables\n");
@@ -316,24 +317,24 @@ unsigned char* grow_region_gpu(unsigned char* data){
     queue = clCreateCommandQueue(context, device, 0, &err);
     clError("clCreateCommandQueue", err);
     kernel = buildKernel("region.cl", "region", NULL, context, device);
-    printf("Done with OpenCL setup.\n");
+    printf("Done with OpenCL setup\n");
 
     //Setting up host region
     region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
     region[50*IMAGE_SIZE + 300*(DATA_DIM + 1)] = 2;
 
     //Setting up OpenCL versions of data, region, and changed
-    gpuRegion = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(uchar)*DATA_SIZE, region, &err);
+    gpuRegion = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, region, &err);
     clError("clCreateBuffer(gpuRegion)", err);
-    gpuData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(uchar)*DATA_SIZE, data, &err);
+    gpuData = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, data, &err);
     clError("clCreateBuffer(gpuData)", err);
     gpuChanged = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(int), &changed, &err);
     clError("clCreateBuffer(gpuChanged)", err);
 
     //Copying over data, region, and changed
-    err = clEnqueueWriteBuffer(queue, gpuData, CL_TRUE, 0, sizeof(uchar)*DATA_SIZE, data, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, gpuData, CL_TRUE, 0, dataSize, data, 0, NULL, NULL);
     clError("clEnqueueWriteBuffer(gpuData)", err);
-    err = clEnqueueWriteBuffer(queue, gpuRegion, CL_TRUE, 0, sizeof(uchar)*DATA_SIZE, region, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, gpuRegion, CL_TRUE, 0, dataSize, region, 0, NULL, NULL);
     clError("clEnqueueWriteBuffer(gpuRegion)", err);
     err = clEnqueueWriteBuffer(queue, gpuChanged, CL_TRUE, 0, sizeof(int), &changed, 0, NULL, NULL);
     clError("clEnqueueWriteBuffer(gpuShared)", err);
@@ -371,7 +372,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
         printf("Iteration: %d, changed: %d\n", cntr, changed);
     } while(changed);
 
-    err = clEnqueueReadBuffer(queue, gpuRegion, CL_TRUE, 0, sizeof(gpuRegion), &region, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(queue, gpuRegion, CL_TRUE, 0, dataSize, region, 0, NULL, NULL);
     clError("clEnqueueReadBuffer(gpuRegion)", err);
     err = clFinish(queue);
     clError("clFinish(copying region back to host)", err);
@@ -389,6 +390,8 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     cl_command_queue queue;
     cl_platform_id platform;
     cl_mem gpuRegion, gpuData, gpuImage;
+    size_t dataSize = sizeof(uchar)*DATA_SIZE;
+    size_t imageSize = sizeof(uchar)*IMAGE_SIZE;
     unsigned int numEntries = 10, numResults = 0;
     size_t l_ws[2] = {32, 32}, g_ws[2] = {512, 512};
     printf("Done setting up variables\n");
@@ -410,17 +413,17 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
     image = (uchar*) calloc(sizeof(uchar), IMAGE_SIZE);
 
     //Setting up OpenCL versions of data, region, image
-    gpuRegion = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(uchar)*DATA_SIZE, region, &err);
+    gpuRegion = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, region, &err);
     clError("clCreateBuffer(gpuRegion)", err);
-    gpuData = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(uchar)*DATA_SIZE, data, &err);
+    gpuData = clCreateBuffer(context, CL_MEM_READ_WRITE, dataSize, data, &err);
     clError("clCreateBuffer(gpuData)", err);
-    gpuImage = clCreateBuffer(context, CL_MEM_READ_WRITE, sizeof(uchar)*IMAGE_SIZE, &image, &err);
+    gpuImage = clCreateBuffer(context, CL_MEM_READ_WRITE, imageSize, &image, &err);
     clError("clCreateBuffer(gpuChanged)", err);
 
     //Copying over data, region, and changed
-    err = clEnqueueWriteBuffer(queue, gpuData, CL_TRUE, 0, sizeof(uchar)*DATA_SIZE, data, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, gpuData, CL_TRUE, 0, dataSize, data, 0, NULL, NULL);
     clError("clEnqueueWriteBuffer(gpuData)", err);
-    err = clEnqueueWriteBuffer(queue, gpuRegion, CL_TRUE, 0, sizeof(uchar)*DATA_SIZE, region, 0, NULL, NULL);
+    err = clEnqueueWriteBuffer(queue, gpuRegion, CL_TRUE, 0, dataSize, region, 0, NULL, NULL);
     clError("clEnqueueWriteBuffer(gpuRegion)", err);
     err = clEnqueueWriteBuffer(queue, gpuImage, CL_TRUE, 0, sizeof(int), image, 0, NULL, NULL);
     clError("clEnqueueWriteBuffer(image)", err);
@@ -444,14 +447,13 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
         clError("clFinish(Kernel Call)", err);
 
     //Copy back to host
-    err = clEnqueueReadBuffer(queue, gpuImage, CL_TRUE, 0, sizeof(gpuImage), &image, 0, NULL, NULL);
+    err = clEnqueueReadBuffer(queue, gpuImage, CL_TRUE, 0, imageSize, image, 0, NULL, NULL);
     clError("clEnqueueReadBuffer(gpuImage)", err);
     err = clFinish(queue);
-        clError("clFinish(Copying image back to device)", err);
+    clError("clFinish(Copying image back to device)", err);
 
     return image;
 }
-
 
 int main(/*int argc, char** argv*/){
     printf("\nStarting program...\n\n");
