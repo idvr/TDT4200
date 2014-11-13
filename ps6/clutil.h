@@ -3,9 +3,6 @@
 #include <CL/cl.h>
 #include <stdio.h>
 
-#define NEW_VOX 2
-#define VISITED 1
-
 // data is 3D, total size is DATA_DIM x DATA_DIM x DATA_DIM
 #define DATA_DIM 512
 #define DATA_SIZE (DATA_DIM*DATA_DIM*DATA_DIM)

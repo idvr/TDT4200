@@ -120,7 +120,7 @@ unsigned char func(int x, int y, int z){
 }
 
 unsigned char* create_data(){
-    unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char) * DATA_DIM*DATA_DIM*DATA_DIM);
+    unsigned char* data = (unsigned char*)malloc(sizeof(unsigned char)*DATA_DIM*DATA_DIM*DATA_DIM);
 
     for(int i = 0; i < DATA_DIM; i++){
         for(int j = 0; j < DATA_DIM; j++){
@@ -152,7 +152,7 @@ int inside_int(int3 pos){
 
 // Indexing function (note the argument order)
 int index(int z, int y, int x){
-    return z * DATA_DIM*DATA_DIM + y*DATA_DIM + x;
+    return z*DATA_DIM*DATA_DIM + y*DATA_DIM + x;
 }
 
 // Trilinear interpolation
@@ -235,7 +235,7 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
             }
 
             // Write final color to image
-            image[(y+(IMAGE_DIM/2)) * IMAGE_DIM + (x+(IMAGE_DIM/2))] = color > 255 ? 255 : color;
+            image[(y+(IMAGE_DIM/2))*IMAGE_DIM + (x+(IMAGE_DIM/2))] = color > 255 ? 255 : color;
         }
     }
 
@@ -245,11 +245,9 @@ unsigned char* raycast_serial(unsigned char* data, unsigned char* region){
 
 // Check if two values are similar, threshold can be changed.
 int similar(unsigned char* data, int3 a, int3 b){
-    unsigned char va = data[a.z * DATA_DIM*DATA_DIM + a.y*DATA_DIM + a.x];
-    unsigned char vb = data[b.z * DATA_DIM*DATA_DIM + b.y*DATA_DIM + b.x];
-
-    int i = abs(va-vb) < 1;
-    return i;
+    unsigned char va = data[a.z*DATA_DIM*DATA_DIM + a.y*DATA_DIM + a.x];
+    unsigned char vb = data[b.z*DATA_DIM*DATA_DIM + b.y*DATA_DIM + b.x];
+    return (int) abs(va-vb) < 1;
 }
 
 
@@ -279,13 +277,13 @@ unsigned char* grow_region_serial(unsigned char* data){
                 continue;
             }
 
-            if(region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x]){
+            if(region[candidate.z*DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x]){
                 continue;
             }
 
             if(similar(data, pixel, candidate)){
                 push(stack, candidate);
-                region[candidate.z * DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x] = 1;
+                region[candidate.z*DATA_DIM*DATA_DIM + candidate.y*DATA_DIM + candidate.x] = 1;
             }
         }
     }
@@ -314,12 +312,13 @@ unsigned char* grow_region_gpu(unsigned char* data){
     cl_platform_id platform;
     cl_mem gpuRegion, gpuData, gpuChanged;
     unsigned int numEntries = 10, numResults = 0;
+    size_t l_ws[3] = {16, 8, 8}, g_ws[3] = {512, 512, 512};
     printf("Done setting up variables\n");
 
     //OpenCL specific set-up
     err = clGetPlatformIDs(numEntries, &platform, &numResults);
     clError("clGetPlatformIDs", err);
-    printPlatformInfo(platform);
+    //printPlatformInfo(platform);
     err = clGetDeviceIDs(platform, CL_DEVICE_TYPE_GPU, 1, &device, &numResults);
     clError("clGetDeviceIDs", err);
     context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
@@ -331,7 +330,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
 
     //Setting up host region
     region = (uchar*) calloc(sizeof(uchar), DATA_SIZE);
-    region[50*IMAGE_SIZE + 300*(DATA_DIM + 1)] = NEW_VOX;
+    region[50*IMAGE_SIZE + 300*(DATA_DIM + 1)] = 2;
 
     //Setting up OpenCL versions of data and region
     gpuRegion = clCreateBuffer(context, CL_MEM_COPY_HOST_PTR, sizeof(uchar)*DATA_SIZE, region, &err);
@@ -354,7 +353,7 @@ unsigned char* grow_region_gpu(unsigned char* data){
         changed = 0;
         err = clEnqueueWriteBuffer(queue, gpuChanged, CL_TRUE, 0, sizeof(gpuChanged), &changed, 0, NULL, NULL);
         clError("clEnqueueWriteBuffer(gpuData-while-loop)", err);
-        err = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, DATA_SIZE, DATA_DIM, 0, NULL, NULL);
+        err = clEnqueueNDRangeKernel(queue, kernel, 3, NULL, g_ws, l_ws, 0, NULL, NULL);
         err = clEnqueueReadBuffer(queue, gpuChanged, CL_TRUE, 0, sizeof(gpuChanged), &changed, 0, NULL, NULL);
         clError("clEnqueueReadBuffer(gpuData-while-loop)", err);
     }
@@ -380,16 +379,16 @@ unsigned char* raycast_gpu(unsigned char* data, unsigned char* region){
 }
 
 
-int main(int argc, char** argv){
+int main(/*int argc, char** argv*/){
     printf("\nStarting program...\n\n");
 
     unsigned char* data = create_data();
     printf("Done creating data\n\n");
 
     //Serial
-    unsigned char* region = grow_region_serial(data);
+    //unsigned char* region = grow_region_serial(data);
     //OpenCL
-    //unsigned char* region = grow_region_gpu(data);
+    unsigned char* region = grow_region_gpu(data);
     printf("Done creating region\n\n");
 
     //Serial
